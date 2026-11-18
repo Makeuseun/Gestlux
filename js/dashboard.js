@@ -563,6 +563,8 @@
         });
         fecharModalProduto();
         toast("Produto atualizado.");
+        btn.textContent = "Salvar alterações";
+        btn.disabled = false;
         await recarregarEAtualizar();
       } catch (erro) {
         toast((erro && erro.message) || "Não foi possível salvar o produto.", 'erro');

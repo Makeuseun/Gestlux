@@ -39,7 +39,8 @@ create table if not exists public.produtos (
 create table if not exists public.movimentacoes (
   id uuid primary key default gen_random_uuid(),
   organizacao_id uuid not null references public.organizacoes(id) on delete cascade,
-  produto_id uuid not null references public.produtos(id) on delete cascade,
+  produto_id uuid references public.produtos(id) on delete set null,
+  produto_nome text,
   tipo text not null check (tipo in ('entrada', 'saida', 'venda')),
   quantidade integer not null,
   valor numeric(12, 2) not null default 0,
@@ -51,6 +52,46 @@ create index if not exists movimentacoes_organizacao_idx on public.movimentacoes
 
 -- SKU único dentro da organização (o seed usa isso para não duplicar).
 create unique index if not exists produtos_org_sku_uq on public.produtos (organizacao_id, sku) where sku is not null;
+
+-- -----------------------------------------------------
+-- Migração: o histórico sobrevive à exclusão do produto.
+-- produto_id fica anulável (on delete set null) e o nome do
+-- produto é denormalizado em produto_nome para os relatórios.
+-- Assim, produto com estoque zerado pode ser excluído sem
+-- apagar as vendas registradas. Seguro para rodar de novo.
+-- -----------------------------------------------------
+alter table public.movimentacoes add column if not exists produto_nome text;
+
+do $$
+declare
+  v_fk text;
+begin
+  select conname into v_fk
+  from pg_constraint
+  where conrelid = 'public.movimentacoes'::regclass
+    and contype = 'f'
+    and pg_get_constraintdef(oid) like '%produto_id%';
+
+  if found then
+    execute 'alter table public.movimentacoes drop constraint ' || quote_ident(v_fk);
+  end if;
+end $$;
+
+alter table public.movimentacoes alter column produto_id drop not null;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.movimentacoes'::regclass
+      and contype = 'f'
+      and pg_get_constraintdef(oid) like '%produto_id%'
+  ) then
+    alter table public.movimentacoes
+      add constraint movimentacoes_produto_fk
+      foreign key (produto_id) references public.produtos(id) on delete set null;
+  end if;
+end $$;
 
 -- -----------------------------------------------------
 -- Função auxiliar: organização do usuário autenticado.
@@ -137,8 +178,10 @@ begin
     raise exception 'Estoque insuficiente.';
   end if;
 
-  insert into public.movimentacoes (organizacao_id, produto_id, tipo, quantidade, valor)
-  values (v_org, p_produto_id, 'venda', p_quantidade, v_preco * p_quantidade);
+  insert into public.movimentacoes (organizacao_id, produto_id, produto_nome, tipo, quantidade, valor)
+  select v_org, p_produto_id, p.nome, 'venda', p_quantidade, v_preco * p_quantidade
+  from public.produtos p
+  where p.id = p_produto_id;
 
   update public.produtos
   set quantidade = quantidade - p_quantidade

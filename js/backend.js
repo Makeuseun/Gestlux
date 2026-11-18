@@ -276,6 +276,7 @@
         const mov = await cliente.from('movimentacoes').insert([{
           organizacao_id: user.organizacao_id,
           produto_id: id,
+          produto_nome: dados.nome,
           tipo: delta > 0 ? 'entrada' : 'saida',
           quantidade: Math.abs(delta),
           valor: 0
@@ -310,17 +311,28 @@
     salvarDb();
   }
 
-  // Exclusão preserva o histórico: produto com movimentações não é apagado.
+  // A exclusão preserva o histórico: se o produto tem vendas/movimentações
+  // registradas, só pode ser excluído com estoque zerado. As movimentações
+  // ficam com produto_nome para continuar nos relatórios.
   async function excluirProduto(id) {
-    const temHistorico = function (contagem) { return (contagem || 0) > 0; };
-    const mensagemHistorico = 'Este produto tem movimentações registradas. Zere o estoque ou mantenha o registro.';
+    const mensagemEstoque = 'Este produto tem histórico e ainda tem estoque. Zere o estoque para poder excluí-lo.';
 
     if (modo === 'remoto') {
-      const count = await cliente.from('movimentacoes')
-        .select('id', { count: 'exact', head: true })
-        .eq('produto_id', id);
-      if (count.error) throw count.error;
-      if (temHistorico(count.count)) throw new Error(mensagemHistorico);
+      const user = await usuario();
+      const atual = await cliente.from('produtos')
+        .select('quantidade')
+        .eq('id', id)
+        .eq('organizacao_id', user.organizacao_id)
+        .maybeSingle();
+      if (!atual.data) throw new Error('Produto não encontrado.');
+
+      if (Number(atual.data.quantidade) > 0) {
+        const count = await cliente.from('movimentacoes')
+          .select('id', { count: 'exact', head: true })
+          .eq('produto_id', id);
+        if (count.error) throw count.error;
+        if ((count.count || 0) > 0) throw new Error(mensagemEstoque);
+      }
 
       const { error } = await cliente.from('produtos').delete().eq('id', id);
       if (error) throw traduzirErroProduto(error);
@@ -328,9 +340,15 @@
     }
 
     const atual = db();
-    if (atual.movimentacoes.some(function (m) { return m.produto_id === id; })) {
-      throw new Error(mensagemHistorico);
-    }
+    const produto = atual.produtos.find(function (p) { return p.id === id; });
+    if (!produto) throw new Error('Produto não encontrado.');
+
+    const temHistorico = atual.movimentacoes.some(function (m) { return m.produto_id === id; });
+    if (Number(produto.quantidade) > 0 && temHistorico) throw new Error(mensagemEstoque);
+
+    atual.movimentacoes.forEach(function (m) {
+      if (m.produto_id === id) m.produto_id = null;
+    });
     atual.produtos = atual.produtos.filter(function (p) { return p.id !== id; });
     salvarDb();
   }

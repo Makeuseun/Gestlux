@@ -72,10 +72,11 @@ begin
   if not exists (
     select 1 from public.movimentacoes where organizacao_id = v_org
   ) then
-    insert into public.movimentacoes (organizacao_id, produto_id, tipo, quantidade, valor, criado_em)
+    insert into public.movimentacoes (organizacao_id, produto_id, produto_nome, tipo, quantidade, valor, criado_em)
     select
       v_org,
       p.id,
+      p.nome,
       'venda',
       x.qtd,
       p.preco * x.qtd,
