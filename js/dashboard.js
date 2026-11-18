@@ -11,6 +11,7 @@
   let viewAtual = 'home';
   let dados = { produtos: [], movimentacoes: [] };
   let usuarioAtual = null;
+  let buscaEstoque = '';
 
   function esc(valor) {
     return String(valor == null ? '' : valor).replace(/[&<>"']/g, function (c) {
@@ -273,46 +274,6 @@
   }
 
   function renderEstoque(painel) {
-    const alertas = produtosEmAlerta();
-    const nomesAlerta = alertas.map(function (p) {
-      return esc(p.nome) + ' (' + numero(p.quantidade) + ')';
-    }).join(' · ');
-
-    const blocoAlerta = alertas.length
-      ? '<div class="alerta-estoque" role="status">' +
-        '<i class="fa-solid fa-triangle-exclamation"></i>' +
-        '<div><strong>' + esc(substituir("Atenção: {n} produto(s) abaixo do nível mínimo.", { n: alertas.length })) + '</strong>' +
-        '<p>' + nomesAlerta + '</p></div></div>'
-      : '';
-
-    const tabela = dados.produtos.length
-      ? '<div class="table-responsive"><table class="data-table"><thead><tr>' +
-        '<th>' + esc("Produto") + '</th>' +
-        '<th>' + esc("SKU") + '</th>' +
-        '<th>' + esc("Preço") + '</th>' +
-        '<th>' + esc("Estoque") + '</th>' +
-        '<th>' + esc("Status") + '</th>' +
-        '<th>' + esc("Ação") + '</th>' +
-        '</tr></thead><tbody>' +
-        dados.produtos.map(function (p) {
-          const baixo = numero(p.quantidade) <= numero(p.minimo);
-          return '<tr>' +
-            '<td><strong>' + esc(p.nome) + '</strong></td>' +
-            '<td>' + esc(p.sku || '—') + '</td>' +
-            '<td>' + esc(dinheiro(p.preco)) + '</td>' +
-            '<td>' + numero(p.quantidade) + '</td>' +
-            '<td><span class="status ' + (baixo ? 'status-error' : 'status-success') + '">' +
-            esc((baixo ? "Baixo" : "Normal")) + '</span></td>' +
-            '<td><div class="venda-inline">' +
-            '<input type="number" class="venda-qtd" min="1" max="' + numero(p.quantidade) +
-            '" value="1" aria-label="' + esc("Quantidade") + '" />' +
-            '<button type="button" class="btn btn-primary btn-sm btn-vender" data-id="' + esc(p.id) +
-            '" data-nome="' + esc(p.nome) + '">' + esc("Vender") + '</button>' +
-            '</div></td></tr>';
-        }).join('') +
-        '</tbody></table></div>'
-      : '<p class="tabela-vazia">' + esc("Nenhum produto cadastrado. Comece pelo formulário ao lado.") + '</p>';
-
     painel.innerHTML =
       '<div class="estoque-layout">' +
       '<section class="card-body estoque-cadastro">' +
@@ -332,64 +293,282 @@
       '</form></section>' +
       '<section class="card-body estoque-lista">' +
       '<h3>' + esc("Produtos cadastrados") + '</h3>' +
-      blocoAlerta + tabela +
+      '<div class="estoque-busca">' +
+      '<input id="estoque-busca" type="search" placeholder="' + esc("Buscar por nome ou SKU...") +
+      '" value="' + esc(buscaEstoque) + '" aria-label="' + esc("Buscar produto") + '" />' +
+      '</div>' +
+      '<div id="estoque-alerta">' + alertaEstoqueHTML() + '</div>' +
+      '<div id="estoque-tabela">' + tabelaEstoqueHTML() + '</div>' +
       '</section></div>';
 
-    const form = document.getElementById('produto-form');
-    if (form) {
-      form.addEventListener('submit', async function (e) {
-        e.preventDefault();
-        const btn = form.querySelector('button[type="submit"]');
-        const textoOriginal = btn.textContent;
-        btn.textContent = '...';
-        btn.disabled = true;
+    ligarFormularioProduto();
+    ligarEventosEstoque();
+  }
 
-        try {
-          if (!B) throw new Error('Backend indisponível.');
-          await B.adicionarProduto({
-            nome: document.getElementById('prod-nome').value.trim(),
-            sku: document.getElementById('prod-sku').value.trim(),
-            preco: document.getElementById('prod-preco').value,
-            quantidade: document.getElementById('prod-qtd').value,
-            minimo: document.getElementById('prod-min').value
-          });
-          toast("Produto adicionado e persistido.");
-          await recarregarEAtualizar();
-        } catch (erro) {
-          toast((erro && erro.message) || "Não foi possível concluir a operação.", 'erro');
-          btn.textContent = textoOriginal;
-          btn.disabled = false;
-        }
+  function alertaEstoqueHTML() {
+    const alertas = produtosEmAlerta();
+    if (!alertas.length) return '';
+
+    const nomesAlerta = alertas.map(function (p) {
+      return esc(p.nome) + ' (' + numero(p.quantidade) + ')';
+    }).join(' · ');
+
+    return '<div class="alerta-estoque" role="status">' +
+      '<i class="fa-solid fa-triangle-exclamation"></i>' +
+      '<div><strong>' + esc(substituir("Atenção: {n} produto(s) abaixo do nível mínimo.", { n: alertas.length })) + '</strong>' +
+      '<p>' + nomesAlerta + '</p></div></div>';
+  }
+
+  function produtosFiltrados() {
+    const termo = buscaEstoque.trim().toLowerCase();
+    if (!termo) return dados.produtos;
+    return dados.produtos.filter(function (p) {
+      return (p.nome || '').toLowerCase().indexOf(termo) !== -1 ||
+        (p.sku || '').toLowerCase().indexOf(termo) !== -1;
+    });
+  }
+
+  function tabelaEstoqueHTML() {
+    if (!dados.produtos.length) {
+      return '<p class="tabela-vazia">' + esc("Nenhum produto cadastrado. Comece pelo formulário ao lado.") + '</p>';
+    }
+
+    const filtrados = produtosFiltrados();
+    if (!filtrados.length) {
+      return '<p class="tabela-vazia">' + esc("Nenhum produto encontrado para a busca.") + '</p>';
+    }
+
+    const linhas = filtrados.map(function (p) {
+      const baixo = numero(p.quantidade) <= numero(p.minimo);
+      return '<tr>' +
+        '<td><strong>' + esc(p.nome) + '</strong></td>' +
+        '<td>' + esc(p.sku || '—') + '</td>' +
+        '<td>' + esc(dinheiro(p.preco)) + '</td>' +
+        '<td>' + numero(p.quantidade) + '</td>' +
+        '<td><span class="status ' + (baixo ? 'status-error' : 'status-success') + '">' +
+        esc(baixo ? "Baixo" : "Normal") + '</span></td>' +
+        '<td><div class="venda-inline">' +
+        '<input type="number" class="venda-qtd" min="1" max="' + numero(p.quantidade) +
+        '" value="1" aria-label="' + esc("Quantidade") + '" />' +
+        '<button type="button" class="btn btn-primary btn-sm btn-vender" data-id="' + esc(p.id) +
+        '" data-nome="' + esc(p.nome) + '">' + esc("Vender") + '</button>' +
+        '</div></td>' +
+        '<td><div class="acoes-produto">' +
+        '<button type="button" class="btn btn-outline btn-sm btn-editar" data-id="' + esc(p.id) +
+        '" aria-label="' + esc("Editar produto") + '">' + esc("Editar") + '</button>' +
+        '<button type="button" class="btn btn-danger btn-sm btn-excluir" data-id="' + esc(p.id) +
+        '" aria-label="' + esc("Excluir produto") + '">' + esc("Excluir") + '</button>' +
+        '</div></td></tr>';
+    }).join('');
+
+    return '<div class="table-responsive"><table class="data-table"><thead><tr>' +
+      '<th>' + esc("Produto") + '</th>' +
+      '<th>' + esc("SKU") + '</th>' +
+      '<th>' + esc("Preço") + '</th>' +
+      '<th>' + esc("Estoque") + '</th>' +
+      '<th>' + esc("Status") + '</th>' +
+      '<th>' + esc("Ação") + '</th>' +
+      '<th>' + esc("Ações") + '</th>' +
+      '</tr></thead><tbody>' + linhas + '</tbody></table></div>';
+  }
+
+  function atualizarEstoqueTabela() {
+    const alerta = document.getElementById('estoque-alerta');
+    const tabela = document.getElementById('estoque-tabela');
+    if (alerta) alerta.innerHTML = alertaEstoqueHTML();
+    if (tabela) tabela.innerHTML = tabelaEstoqueHTML();
+  }
+
+  function skuDuplicado(sku, idIgnorado) {
+    const alvo = String(sku || '').trim().toLowerCase();
+    if (!alvo) return false;
+    return dados.produtos.some(function (p) {
+      return p.id !== idIgnorado && String(p.sku || '').trim().toLowerCase() === alvo;
+    });
+  }
+
+  function ligarFormularioProduto() {
+    const form = document.getElementById('produto-form');
+    if (!form) return;
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const sku = document.getElementById('prod-sku').value.trim();
+      if (skuDuplicado(sku, null)) {
+        toast("SKU já cadastrado nesta organização.", 'erro');
+        return;
+      }
+
+      const btn = form.querySelector('button[type="submit"]');
+      const textoOriginal = btn.textContent;
+      btn.textContent = '...';
+      btn.disabled = true;
+
+      try {
+        if (!B) throw new Error('Backend indisponível.');
+        await B.adicionarProduto({
+          nome: document.getElementById('prod-nome').value.trim(),
+          sku: sku,
+          preco: document.getElementById('prod-preco').value,
+          quantidade: document.getElementById('prod-qtd').value,
+          minimo: document.getElementById('prod-min').value
+        });
+        toast("Produto adicionado e persistido.");
+        buscaEstoque = '';
+        await recarregarEAtualizar();
+      } catch (erro) {
+        toast((erro && erro.message) || "Não foi possível concluir a operação.", 'erro');
+        btn.textContent = textoOriginal;
+        btn.disabled = false;
+      }
+    });
+  }
+
+  function ligarEventosEstoque() {
+    const busca = document.getElementById('estoque-busca');
+    if (busca) {
+      busca.addEventListener('input', function () {
+        buscaEstoque = busca.value;
+        atualizarEstoqueTabela();
       });
     }
 
-    painel.querySelectorAll('.btn-vender').forEach(function (btn) {
-      btn.addEventListener('click', async function () {
-        const linha = btn.closest('tr');
-        const input = linha.querySelector('.venda-qtd');
-        const quantidade = Number(input.value);
-        const produto = dados.produtos.find(function (p) { return p.id === btn.getAttribute('data-id'); });
+    const tabela = document.getElementById('estoque-tabela');
+    if (!tabela) return;
+
+    tabela.addEventListener('click', async function (e) {
+      const botao = e.target.closest('button');
+      if (!botao) return;
+
+      if (botao.classList.contains('btn-vender')) {
+        const linha = botao.closest('tr');
+        const input = linha && linha.querySelector('.venda-qtd');
+        const quantidade = Number(input && input.value);
+        const produto = dados.produtos.find(function (p) { return p.id === botao.getAttribute('data-id'); });
 
         if (!quantidade || quantidade < 1 || (produto && quantidade > numero(produto.quantidade))) {
           toast("Informe uma quantidade entre 1 e o estoque disponível.", 'erro');
-          input.focus();
+          if (input) input.focus();
           return;
         }
 
-        btn.textContent = '...';
-        btn.disabled = true;
+        botao.textContent = '...';
+        botao.disabled = true;
 
         try {
           if (!B) throw new Error('Backend indisponível.');
-          await B.registrarVenda(btn.getAttribute('data-id'), quantidade);
-          toast(substituir("Venda registrada: {q} unidade(s) de {n}.", { q: quantidade, n: btn.getAttribute('data-nome') }));
+          await B.registrarVenda(botao.getAttribute('data-id'), quantidade);
+          toast(substituir("Venda registrada: {q} unidade(s) de {n}.", { q: quantidade, n: botao.getAttribute('data-nome') }));
           await recarregarEAtualizar();
         } catch (erro) {
           toast((erro && erro.message) || "Não foi possível concluir a operação.", 'erro');
-          btn.textContent = "Vender";
-          btn.disabled = false;
+          botao.textContent = "Vender";
+          botao.disabled = false;
         }
-      });
+        return;
+      }
+
+      if (botao.classList.contains('btn-editar')) {
+        const produto = dados.produtos.find(function (p) { return p.id === botao.getAttribute('data-id'); });
+        if (produto) abrirModalProduto(produto);
+        return;
+      }
+
+      if (botao.classList.contains('btn-excluir')) {
+        const produto = dados.produtos.find(function (p) { return p.id === botao.getAttribute('data-id'); });
+        if (!produto) return;
+
+        const confirmado = window.confirm(
+          substituir("Excluir \"{n}\"? Esta ação não pode ser desfeita.", { n: produto.nome })
+        );
+        if (!confirmado) return;
+
+        botao.textContent = '...';
+        botao.disabled = true;
+
+        try {
+          if (!B) throw new Error('Backend indisponível.');
+          await B.excluirProduto(produto.id);
+          toast("Produto excluído.");
+          await recarregarEAtualizar();
+        } catch (erro) {
+          toast((erro && erro.message) || "Não foi possível excluir o produto.", 'erro');
+          botao.textContent = "Excluir";
+          botao.disabled = false;
+        }
+      }
+    });
+  }
+
+  function abrirModalProduto(produto) {
+    const modal = document.getElementById('modal-produto');
+    if (!modal || !produto) return;
+
+    document.getElementById('modal-produto-id').value = produto.id;
+    document.getElementById('modal-nome').value = produto.nome || '';
+    document.getElementById('modal-sku').value = produto.sku || '';
+    document.getElementById('modal-preco').value = numero(produto.preco);
+    document.getElementById('modal-qtd').value = numero(produto.quantidade);
+    document.getElementById('modal-min').value = numero(produto.minimo);
+
+    modal.hidden = false;
+    document.getElementById('modal-nome').focus();
+  }
+
+  function fecharModalProduto() {
+    const modal = document.getElementById('modal-produto');
+    if (modal) modal.hidden = true;
+  }
+
+  function registrarEventosModal() {
+    const modal = document.getElementById('modal-produto');
+    if (!modal) return;
+
+    const cancelar = document.getElementById('modal-cancelar');
+    if (cancelar) cancelar.addEventListener('click', fecharModalProduto);
+
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) fecharModalProduto();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !modal.hidden) fecharModalProduto();
+    });
+
+    const form = document.getElementById('modal-produto-form');
+    if (!form) return;
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const id = document.getElementById('modal-produto-id').value;
+      const sku = document.getElementById('modal-sku').value.trim();
+
+      if (skuDuplicado(sku, id)) {
+        toast("SKU já cadastrado nesta organização.", 'erro');
+        return;
+      }
+
+      const btn = form.querySelector('button[type="submit"]');
+      btn.textContent = '...';
+      btn.disabled = true;
+
+      try {
+        if (!B) throw new Error('Backend indisponível.');
+        await B.atualizarProduto(id, {
+          nome: document.getElementById('modal-nome').value.trim(),
+          sku: sku,
+          preco: document.getElementById('modal-preco').value,
+          quantidade: document.getElementById('modal-qtd').value,
+          minimo: document.getElementById('modal-min').value
+        });
+        fecharModalProduto();
+        toast("Produto atualizado.");
+        await recarregarEAtualizar();
+      } catch (erro) {
+        toast((erro && erro.message) || "Não foi possível salvar o produto.", 'erro');
+        btn.textContent = "Salvar alterações";
+        btn.disabled = false;
+      }
     });
   }
 
@@ -636,6 +815,7 @@
       irPara((location.hash || '#home').replace('#', ''));
     });
 
+    registrarEventosModal();
   }
 
   async function init() {

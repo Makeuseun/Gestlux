@@ -229,7 +229,7 @@
         quantidade: Number(dados.quantidade) || 0,
         minimo: Number(dados.minimo) || 0
       }]).select().single();
-      if (error) throw error;
+      if (error) throw traduzirErroProduto(error);
       return data;
     }
     const produto = {
@@ -243,6 +243,103 @@
     db().produtos.push(produto);
     salvarDb();
     return produto;
+  }
+
+  // Atualiza o cadastro do produto. Se a quantidade mudar,
+  // registra uma movimentação de ajuste (entrada ou saída).
+  async function atualizarProduto(id, dados) {
+    const novaQuantidade = Math.round(Number(dados.quantidade));
+    if (!isFinite(novaQuantidade) || novaQuantidade < 0) {
+      throw new Error('Informe uma quantidade válida.');
+    }
+
+    if (modo === 'remoto') {
+      const user = await usuario();
+      const atual = await cliente.from('produtos')
+        .select('quantidade')
+        .eq('id', id)
+        .eq('organizacao_id', user.organizacao_id)
+        .maybeSingle();
+      if (!atual.data) throw new Error('Produto não encontrado.');
+
+      const { error } = await cliente.from('produtos').update({
+        nome: dados.nome,
+        sku: dados.sku || null,
+        preco: Number(dados.preco) || 0,
+        quantidade: novaQuantidade,
+        minimo: Number(dados.minimo) || 0
+      }).eq('id', id);
+      if (error) throw traduzirErroProduto(error);
+
+      const delta = novaQuantidade - Math.round(Number(atual.data.quantidade));
+      if (delta !== 0) {
+        const mov = await cliente.from('movimentacoes').insert([{
+          organizacao_id: user.organizacao_id,
+          produto_id: id,
+          tipo: delta > 0 ? 'entrada' : 'saida',
+          quantidade: Math.abs(delta),
+          valor: 0
+        }]);
+        if (mov.error) throw mov.error;
+      }
+      return;
+    }
+
+    const atual = db();
+    const produto = atual.produtos.find(function (p) { return p.id === id; });
+    if (!produto) throw new Error('Produto não encontrado.');
+
+    const delta = novaQuantidade - Math.round(Number(produto.quantidade));
+    produto.nome = dados.nome;
+    produto.sku = dados.sku || '';
+    produto.preco = Number(dados.preco) || 0;
+    produto.quantidade = novaQuantidade;
+    produto.minimo = Number(dados.minimo) || 0;
+
+    if (delta !== 0) {
+      atual.movimentacoes.push({
+        id: uid(),
+        produto_id: produto.id,
+        produto_nome: produto.nome,
+        tipo: delta > 0 ? 'entrada' : 'saida',
+        quantidade: Math.abs(delta),
+        valor: 0,
+        criado_em: new Date().toISOString()
+      });
+    }
+    salvarDb();
+  }
+
+  // Exclusão preserva o histórico: produto com movimentações não é apagado.
+  async function excluirProduto(id) {
+    const temHistorico = function (contagem) { return (contagem || 0) > 0; };
+    const mensagemHistorico = 'Este produto tem movimentações registradas. Zere o estoque ou mantenha o registro.';
+
+    if (modo === 'remoto') {
+      const count = await cliente.from('movimentacoes')
+        .select('id', { count: 'exact', head: true })
+        .eq('produto_id', id);
+      if (count.error) throw count.error;
+      if (temHistorico(count.count)) throw new Error(mensagemHistorico);
+
+      const { error } = await cliente.from('produtos').delete().eq('id', id);
+      if (error) throw traduzirErroProduto(error);
+      return;
+    }
+
+    const atual = db();
+    if (atual.movimentacoes.some(function (m) { return m.produto_id === id; })) {
+      throw new Error(mensagemHistorico);
+    }
+    atual.produtos = atual.produtos.filter(function (p) { return p.id !== id; });
+    salvarDb();
+  }
+
+  function traduzirErroProduto(erro) {
+    if (erro && erro.code === '23505') {
+      return new Error('SKU já cadastrado nesta organização.');
+    }
+    return erro;
   }
 
   async function registrarVenda(produtoId, quantidade) {
@@ -318,6 +415,8 @@
     usuario: usuario,
     carregarDados: carregarDados,
     adicionarProduto: adicionarProduto,
+    atualizarProduto: atualizarProduto,
+    excluirProduto: excluirProduto,
     registrarVenda: registrarVenda,
     salvarConfig: salvarConfig,
     listarUsuarios: listarUsuarios

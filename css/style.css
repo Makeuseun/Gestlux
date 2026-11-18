@@ -1899,6 +1899,71 @@ img {
   font-size: 0.85rem;
 }
 
+.estoque-busca {
+  margin-bottom: 1rem;
+}
+
+.estoque-busca input {
+  width: 100%;
+  max-width: 340px;
+}
+
+.acoes-produto {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.btn-danger {
+  background-color: var(--cor-erro);
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background-color: #dc2626;
+  transform: translateY(-2px);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.modal[hidden] {
+  display: none;
+}
+
+.modal-caixa {
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 1.5rem;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--fundo-card);
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.25);
+}
+
+.modal-caixa h3 {
+  margin-top: 0;
+  font-size: 1rem;
+  color: var(--texto);
+}
+
+.modal-acoes {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+}
+
 .tabela-vazia {
   padding: 1.5rem;
   text-align: center;
