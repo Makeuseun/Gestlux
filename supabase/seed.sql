@@ -4,6 +4,9 @@
 --    E-mail: demo@gestlux.com.br
 --    Senha:  Demo@12345
 -- 2) Execute este arquivo no SQL Editor.
+--
+-- Repetível: se o usuário demo já tiver perfil,
+-- o script não altera nada. Pode rodar novamente.
 -- =====================================================
 
 do $$

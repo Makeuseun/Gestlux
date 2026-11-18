@@ -22,3 +22,14 @@ Demo Supabase: `demo@gestlux.com.br` / `Demo@12345`.
 4. Preencha `js/config.js` com a Project URL e a chave `sb_publishable_...`.
 
 Nunca use `service_role` ou `sb_secret_...` no front. O badge “Supabase conectado” confirma a conexão.
+
+Ambos os SQLs são idempotentes: pode rodar de novo sem duplicar. Atualizou o `schema.sql`? Rode-o novamente no SQL Editor.
+
+CI leve: cada push roda `node scripts/check.js` no GitHub (sintaxe, referências e segredos). Rode localmente também antes de publicar.
+
+## Observações
+
+- Indicadores, estoque, vendas, relatórios e CSV usam dados reais quando conectado.
+- Demo Rápida gera uma projeção ilustrativa a partir das respostas.
+- Não há cliente pagante nem piloto real ainda: use “pronto para o primeiro piloto”.
+- NF-e, prontuário e integrações marcadas como “em breve” não estão implementados.

@@ -155,8 +155,17 @@ alter table public.produtos enable row level security;
 alter table public.movimentacoes enable row level security;
 
 drop policy if exists "organizacao do usuario" on public.organizacoes;
-create policy "organizacao do usuario" on public.organizacoes
-  for all using (id = public.organizacao_atual())
+drop policy if exists "organizacao leitura" on public.organizacoes;
+drop policy if exists "organizacao atualizacao" on public.organizacoes;
+
+-- Leitura e atualização da própria organização.
+-- Sem política de DELETE: a organização não pode ser apagada pelo front
+-- (evita cascade apagando perfis, produtos e movimentações).
+create policy "organizacao leitura" on public.organizacoes
+  for select using (id = public.organizacao_atual());
+
+create policy "organizacao atualizacao" on public.organizacoes
+  for update using (id = public.organizacao_atual())
   with check (id = public.organizacao_atual());
 
 drop policy if exists "perfil proprio" on public.perfis;
