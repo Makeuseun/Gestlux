@@ -1,0 +1,16 @@
+# Dependências e build
+node_modules/
+.vercel/
+dist/
+build/
+
+# Logs e arquivos temporários
+*.log
+*.tmp
+Thumbs.db
+desktop.ini
+
+# Ambiente local
+.env
+.env.*
+!.env.example

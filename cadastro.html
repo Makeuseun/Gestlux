@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Criar conta | Gestlux</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-container">
+      <div class="auth-brand">
+        <img class="logo-icon" src="favicon.svg" alt="" aria-hidden="true" />
+        <span class="logo-text">Gest<span class="accent">lux</span></span>
+      </div>
+      <div class="auth-card">
+        <h2>Criar sua conta</h2>
+        <p>Comece a gerenciar sua organização em poucos minutos.</p>
+        <form id="cadastro-form" class="auth-form">
+          <div class="form-group">
+            <label for="nome">Nome completo</label>
+            <input type="text" id="nome" name="nome" placeholder="Digite seu nome" autocomplete="name" required />
+          </div>
+          <div class="form-group">
+            <label for="email">E-mail</label>
+            <input type="email" id="email" name="email" placeholder="seu@email.com" autocomplete="email" required />
+          </div>
+          <div class="form-group">
+            <label for="senha">Senha</label>
+            <input type="password" id="senha" name="senha" placeholder="••••••••" autocomplete="new-password" minlength="6" required />
+          </div>
+          <div class="form-group">
+            <label for="segmento">Segmento de atuação</label>
+            <select id="segmento" name="segmento" required>
+              <option value="" disabled selected>Escolha um segmento</option>
+              <option value="empresarial">Empresarial</option>
+              <option value="educacional">Educacional</option>
+              <option value="saude">Saúde</option>
+              <option value="varejo">Varejo</option>
+            </select>
+          </div>
+          <div class="form-group form-check">
+            <input type="checkbox" id="termos" name="termos" required />
+            <label for="termos">
+              <span>Li e aceito os</span> <a href="#" id="link-termos">termos de uso</a> <span>e a</span> <a href="#" id="link-privacidade">política de privacidade</a>
+            </label>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Criar conta</button>
+          <p class="auth-footer">
+            <span>Já tem uma conta?</span> <a href="login.html">Entrar</a>
+          </p>
+          <p class="auth-footer">
+            <a href="index.html">Voltar ao site</a>
+          </p>
+          <p class="auth-aviso" id="modo-aviso">Carregando modo de operação...</p>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/theme.js"></script>
+  <script src="js/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/backend.js"></script>
+  <script src="js/auth.js"></script>
+</body>
+</html>

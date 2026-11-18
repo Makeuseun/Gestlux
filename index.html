@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestlux | Sistema de Gestão Flexível</title>
+  <meta name="description" content="Plataforma de gestão adaptável para empresas, escolas, clínicas e varejo." />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="toast" class="toast"></div>
+
+  <header class="header" id="header">
+    <div class="container header-inner">
+      <div class="logo">
+        <img class="logo-icon" src="favicon.svg" alt="" aria-hidden="true" />
+        <span class="logo-text">Gest<span class="accent">lux</span></span>
+      </div>
+      <nav class="nav" id="nav" aria-label="Navegação principal">
+        <ul class="nav-list">
+          <li><a href="#inicio" class="nav-link active">Início</a></li>
+          <li><a href="#modulos" class="nav-link">Módulos</a></li>
+          <li><a href="#demo" class="nav-link">Demo Rápida</a></li>
+          <li><a href="#publicos" class="nav-link">Para Quem É</a></li>
+          <li><a href="#contato" class="nav-link">Contato</a></li>
+        </ul>
+        <div class="nav-actions">
+          <button class="btn btn-outline btn-icone" id="theme-toggle" aria-label="Ativar tema escuro">
+            <i class="fa-solid fa-moon"></i>
+          </button>
+          <a href="login.html" class="btn btn-primary">Entrar</a>
+        </div>
+        <button class="nav-toggle" id="nav-toggle" aria-label="Abrir menu" aria-expanded="false">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="inicio">
+      <div class="container hero-grid">
+        <div class="hero-content">
+          <span class="badge">Sistema de Gestão Multi-público</span>
+          <h1>Gestão inteligente que se adapta ao seu negócio.</h1>
+          <p>Uma plataforma flexível para empresas, instituições de ensino, clínicas, varejo e qualquer organização que precise organizar processos, pessoas e dados em um só lugar.</p>
+          <div class="hero-actions">
+            <a href="#demo" class="btn btn-primary btn-lg">Ver demonstração</a>
+            <a href="#modulos" class="btn btn-outline btn-lg">Conhecer os módulos</a>
+          </div>
+          <div class="hero-stats">
+            <div class="stat">
+              <span class="stat-value">Configurável</span>
+              <span class="stat-label">Por setor</span>
+            </div>
+            <div class="stat">
+              <span class="stat-value">8</span>
+              <span class="stat-label">Módulos no MVP</span>
+            </div>
+            <div class="stat">
+              <span class="stat-value">100%</span>
+              <span class="stat-label">Em português</span>
+            </div>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <div class="dashboard-card">
+            <div class="dashboard-header">
+              <div class="dashboard-avatar"></div>
+              <div class="dashboard-info">
+                <div class="dashboard-title">Painel de Controle</div>
+                <div class="dashboard-sub">Exemplo • 12 tarefas pendentes</div>
+              </div>
+            </div>
+            <div class="dashboard-body">
+              <div class="metric-grid">
+                <div class="metric">
+                  <div class="metric-value">R$ 84.200</div>
+                  <div class="metric-label">Receita mensal</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-value">1.240</div>
+                  <div class="metric-label">Usuários ativos</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-value">92%</div>
+                  <div class="metric-label">Taxa de conclusão</div>
+                </div>
+              </div>
+              <div class="chart-placeholder">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>Desempenho dos últimos 30 dias • dados ilustrativos</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="modulos" id="modulos">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">Módulos</span>
+          <h2>Funcionalidades que se adaptam à sua rotina</h2>
+          <p>Ative apenas o que faz sentido para o seu público. Cada módulo pode ser configurado independentemente.</p>
+        </div>
+        <div class="filter-chips" role="group" aria-label="Filtrar módulos por setor">
+          <button class="chip active" data-filter="todos" aria-pressed="true">Todos</button>
+          <button class="chip" data-filter="empresarial" aria-pressed="false">Empresarial</button>
+          <button class="chip" data-filter="educacional" aria-pressed="false">Educacional</button>
+          <button class="chip" data-filter="saude" aria-pressed="false">Saúde</button>
+          <button class="chip" data-filter="varejo" aria-pressed="false">Varejo</button>
+        </div>
+        <div class="modulos-grid" id="modulos-grid"></div>
+        <p class="section-note">Itens marcados como "em breve" fazem parte do roadmap e ainda não estão implementados neste MVP.</p>
+      </div>
+    </section>
+
+    <section class="demo" id="demo">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">Experiência</span>
+          <h2>Veja como fica o seu painel</h2>
+          <p>Escolha um setor, responda três perguntas e veja a visão geral do dashboard com valores ilustrativos calculados a partir das suas respostas.</p>
+        </div>
+        <div class="demo-layout">
+          <div class="demo-form-panel">
+            <div class="demo-controls" role="group" aria-label="Escolha o setor">
+              <button type="button" class="demo-btn active" data-tema="empresarial" aria-pressed="true">Empresarial</button>
+              <button type="button" class="demo-btn" data-tema="educacional" aria-pressed="false">Educacional</button>
+              <button type="button" class="demo-btn" data-tema="saude" aria-pressed="false">Saúde</button>
+              <button type="button" class="demo-btn" data-tema="varejo" aria-pressed="false">Varejo</button>
+            </div>
+            <div class="demo-step-counter" id="demo-step-counter"></div>
+            <form id="demo-form" class="demo-form" novalidate>
+              <div id="demo-steps"></div>
+              <div class="form-actions">
+                <button type="button" class="btn btn-outline btn-lg hidden" id="demo-prev">Anterior</button>
+                <button type="button" class="btn btn-primary btn-lg" id="demo-next">Próximo</button>
+                <button type="submit" class="btn btn-primary btn-lg hidden" id="demo-submit">Gerar meu painel</button>
+              </div>
+            </form>
+          </div>
+          <div class="demo-preview-panel">
+            <div class="demo-preview" id="demo-preview">
+              <div class="demo-placeholder">
+                <i class="fa-solid fa-chart-pie"></i>
+                <p>Preencha o formulário para gerar seu painel personalizado</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="publicos" id="publicos">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">Versatilidade</span>
+          <h2>Para diferentes realidades, uma mesma plataforma</h2>
+        </div>
+        <div class="publicos-grid">
+          <article class="publico-card" data-tema="empresarial">
+            <div class="publico-icon"><i class="fa-solid fa-building"></i></div>
+            <h3>Empresarial</h3>
+            <p>Controle de projetos, tarefas, fluxo de caixa e relatórios gerenciais em tempo real.</p>
+            <ul class="publico-lista">
+              <li><i class="fa-solid fa-check"></i> Gestão de projetos</li>
+              <li><i class="fa-solid fa-check"></i> Fluxo de caixa</li>
+              <li><i class="fa-solid fa-check"></i> Relatórios gerenciais</li>
+            </ul>
+          </article>
+          <article class="publico-card" data-tema="educacional">
+            <div class="publico-icon"><i class="fa-solid fa-school"></i></div>
+            <h3>Educacional</h3>
+            <p>Gestão de alunos, turmas, notas, frequência e comunicação com responsáveis.</p>
+            <ul class="publico-lista">
+              <li><i class="fa-solid fa-check"></i> Diário de classe digital</li>
+              <li><i class="fa-solid fa-check"></i> Calendário acadêmico</li>
+              <li><i class="fa-solid fa-check"></i> Portal do aluno</li>
+            </ul>
+          </article>
+          <article class="publico-card" data-tema="saude">
+            <div class="publico-icon"><i class="fa-solid fa-hospital"></i></div>
+            <h3>Saúde &amp; Clínicas</h3>
+            <p>Agenda de consultas, histórico do paciente e controle de exames. Módulos clínicos em desenvolvimento.</p>
+            <ul class="publico-lista">
+              <li><i class="fa-solid fa-check"></i> Agenda médica</li>
+              <li><i class="fa-solid fa-check"></i> Prontuário (em breve)</li>
+              <li><i class="fa-solid fa-check"></i> Laudos e receitas</li>
+            </ul>
+          </article>
+          <article class="publico-card" data-tema="varejo">
+            <div class="publico-icon"><i class="fa-solid fa-store"></i></div>
+            <h3>Varejo &amp; Comércio</h3>
+            <p>Controle de estoque, PDV, vendas online/offline, fornecedores e fidelidade.</p>
+            <ul class="publico-lista">
+              <li><i class="fa-solid fa-check"></i> Controle de estoque</li>
+              <li><i class="fa-solid fa-check"></i> PDV integrado</li>
+              <li><i class="fa-solid fa-check"></i> Relatórios de vendas</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="contato" id="contato">
+      <div class="container contato-grid">
+        <div class="contato-info">
+          <h2>Pronto para organizar sua gestão?</h2>
+          <p>Fale com nossa equipe e descubra qual configuração ideal para o seu segmento.</p>
+          <div class="contato-dados">
+            <p><i class="fa-solid fa-envelope"></i> contato@gestlux.com.br</p>
+            <p><i class="fa-solid fa-circle-info"></i> Demonstração — dados de contato ilustrativos</p>
+          </div>
+        </div>
+        <form class="contato-form" id="contato-form">
+          <div class="form-group">
+            <label for="nome">Nome completo</label>
+            <input type="text" id="nome" name="nome" placeholder="Digite seu nome" required />
+          </div>
+          <div class="form-group">
+            <label for="email">E-mail corporativo</label>
+            <input type="email" id="email" name="email" placeholder="empresa@exemplo.com" required />
+          </div>
+          <div class="form-group">
+            <label for="segmento">Segmento de atuação</label>
+            <select id="segmento" name="segmento" required>
+              <option value="" disabled selected>Selecione uma opção</option>
+              <option value="empresarial">Empresarial</option>
+              <option value="educacional">Educacional</option>
+              <option value="saude">Saúde</option>
+              <option value="varejo">Varejo</option>
+              <option value="outro">Outro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="mensagem">Mensagem (opcional)</label>
+            <textarea id="mensagem" name="mensagem" rows="3" placeholder="Conte um pouco sobre sua operação"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary btn-lg btn-block">Solicitar demonstração</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <img class="logo-icon" src="favicon.svg" alt="" aria-hidden="true" />
+        <span class="logo-text">Gest<span class="accent">lux</span></span>
+      </div>
+      <p class="footer-copy">© 2026 Gestlux. MVP operacional — pronto para o primeiro piloto.</p>
+    </div>
+  </footer>
+
+  <script src="js/theme.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/script.js"></script>
+  <script src="js/demo.js"></script>
+</body>
+</html>

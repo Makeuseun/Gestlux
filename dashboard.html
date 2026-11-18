@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard | Gestlux</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="dashboard-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <img class="logo-icon" src="favicon.svg" alt="" aria-hidden="true" />
+        <span class="brand-name">Gest<span class="accent">lux</span></span>
+      </div>
+      <nav class="sidebar-nav" aria-label="Navegação do painel">
+        <ul>
+          <li><a href="#home" class="nav-item active" data-view="home"><i class="fa-solid fa-chart-pie"></i> Visão Geral</a></li>
+          <li><a href="#inventory" class="nav-item" data-view="inventory"><i class="fa-solid fa-boxes-stacked"></i> Estoque</a></li>
+          <li><a href="#modules" class="nav-item" data-view="modules"><i class="fa-solid fa-layer-group"></i> Módulos</a></li>
+          <li><a href="#reports" class="nav-item" data-view="reports"><i class="fa-solid fa-file-alt"></i> Relatórios</a></li>
+          <li><a href="#users" class="nav-item" data-view="users"><i class="fa-solid fa-users"></i> Usuários</a></li>
+          <li><a href="#settings" class="nav-item" data-view="settings"><i class="fa-solid fa-gear"></i> Configurações</a></li>
+        </ul>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="btn btn-outline btn-block" id="logout-btn">Sair</button>
+      </div>
+    </aside>
+
+    <main class="dashboard-content">
+      <header class="dashboard-header">
+        <div class="header-flex">
+          <div class="header-title">
+            <h1 id="view-title">Visão Geral</h1>
+            <p id="view-subtitle">Acompanhe os principais indicadores da sua organização.</p>
+          </div>
+          <div class="header-actions">
+            <span class="badge badge-outline modo-badge" id="modo-badge">Modo local</span>
+            <button class="btn btn-outline btn-icone" id="theme-toggle" aria-label="Ativar tema escuro">
+              <i class="fa-solid fa-moon"></i>
+            </button>
+            <div class="user-profile">
+              <img src="https://ui-avatars.com/api/?name=Usuario&background=2563eb&color=fff" alt="Usuário" class="user-avatar" id="user-avatar" />
+              <span class="user-name" id="user-name">Usuário Demo</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div id="views">
+        <div class="view" id="view-home">
+          <section class="metrics-grid" aria-label="Indicadores">
+            <div class="metric-card">
+              <div class="metric-icon"><i class="fa-solid fa-chart-line"></i></div>
+              <div class="metric-data">
+                <div class="metric-value" id="metrica-vendas">R$ 0,00</div>
+                <div class="metric-label">Vendas em 30 dias</div>
+                <div class="metric-trend neutral" id="metrica-vendas-trend">—</div>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+              <div class="metric-data">
+                <div class="metric-value" id="metrica-produtos">0</div>
+                <div class="metric-label">Produtos cadastrados</div>
+                <div class="metric-trend neutral" id="metrica-produtos-trend">—</div>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+              <div class="metric-data">
+                <div class="metric-value" id="metrica-alertas">0</div>
+                <div class="metric-label">Alertas de estoque</div>
+                <div class="metric-trend neutral" id="metrica-alertas-trend">—</div>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon"><i class="fa-solid fa-receipt"></i></div>
+              <div class="metric-data">
+                <div class="metric-value" id="metrica-pedidos">0</div>
+                <div class="metric-label">Vendas registradas</div>
+                <div class="metric-trend neutral" id="metrica-pedidos-trend">—</div>
+              </div>
+            </div>
+          </section>
+          <div class="dashboard-grid">
+            <section class="chart-card">
+              <div class="card-header">
+                <h3>Vendas dos últimos 7 dias</h3>
+                <span class="badge badge-outline">Últimos 7 dias</span>
+              </div>
+              <div class="card-body">
+                <canvas id="performanceChart" height="200"></canvas>
+                <p class="grafico-fallback hidden" id="grafico-fallback">Gráfico indisponível: não foi possível carregar o Chart.js.</p>
+              </div>
+            </section>
+            <section class="table-card">
+              <div class="card-header">
+                <h3>Vendas recentes</h3>
+                <a href="#reports" class="btn btn-outline btn-sm" id="btn-ver-todas">Ver todas</a>
+              </div>
+              <div class="card-body table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Produto</th>
+                      <th>Qtd</th>
+                      <th>Data</th>
+                      <th>Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody id="vendas-recentes-body"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="view hidden" id="view-inventory"><div class="view-panel" id="inventory-panel"></div></div>
+        <div class="view hidden" id="view-modules"><div class="view-panel" id="modules-panel"></div></div>
+        <div class="view hidden" id="view-reports"><div class="view-panel" id="reports-panel"></div></div>
+        <div class="view hidden" id="view-users"><div class="view-panel" id="users-panel"></div></div>
+        <div class="view hidden" id="view-settings"><div class="view-panel" id="settings-panel"></div></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/theme.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/backend.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>
