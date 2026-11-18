@@ -62,6 +62,13 @@ create unique index if not exists produtos_org_sku_uq on public.produtos (organi
 -- -----------------------------------------------------
 alter table public.movimentacoes add column if not exists produto_nome text;
 
+-- Movimentações antigas ganham o nome do produto (para sobreviver
+-- à exclusão dele nos relatórios).
+update public.movimentacoes m
+set produto_nome = p.nome
+from public.produtos p
+where m.produto_id = p.id and m.produto_nome is null;
+
 do $$
 declare
   v_fk text;
