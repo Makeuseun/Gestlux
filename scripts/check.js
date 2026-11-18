@@ -93,10 +93,10 @@ if (abre !== fecha) {
   falhar('CSS desbalanceado: ' + abre + ' chaves abertas, ' + fecha + ' fechadas');
 }
 
-// 6. Supabase: seed precisa ser repetível
+// 6. Supabase: seed precisa ser repetível e recuperável
 const seed = fs.readFileSync(path.join(raiz, 'supabase', 'seed.sql'), 'utf8');
-if (!/ja semeada|nada foi alterado/i.test(seed)) {
-  falhar('seed.sql não avisa quando já foi executado (risco de duplicar dados)');
+if (!/repet[ií]vel e recuper[aá]vel/i.test(seed)) {
+  falhar('seed.sql não está marcado como repetível/recuperável (risco de não restaurar a demo)');
 }
 
 if (erros.length) {

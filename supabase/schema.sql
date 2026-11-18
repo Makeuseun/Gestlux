@@ -49,6 +49,9 @@ create table if not exists public.movimentacoes (
 create index if not exists produtos_organizacao_idx on public.produtos (organizacao_id);
 create index if not exists movimentacoes_organizacao_idx on public.movimentacoes (organizacao_id, criado_em desc);
 
+-- SKU único dentro da organização (o seed usa isso para não duplicar).
+create unique index if not exists produtos_org_sku_uq on public.produtos (organizacao_id, sku) where sku is not null;
+
 -- -----------------------------------------------------
 -- Função auxiliar: organização do usuário autenticado.
 -- SECURITY DEFINER evita recursão nas políticas de RLS.
