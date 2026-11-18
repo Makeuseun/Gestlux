@@ -5,11 +5,21 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+function Verificar($etapa) {
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host "Falhou: $etapa" -ForegroundColor Red
+    exit $LASTEXITCODE
+  }
+}
+
 Write-Host "Publicando Gestlux: $Mensagem" -ForegroundColor Cyan
 
 git add -A
+Verificar 'git add'
 git commit -m $Mensagem
+Verificar 'git commit'
 git push origin main
+Verificar 'git push'
 
 if ($env:VERCEL_DEPLOY_HOOK_URL) {
   Write-Host 'Disparando deploy manual na Vercel...' -ForegroundColor Cyan
