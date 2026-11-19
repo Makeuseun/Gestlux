@@ -1902,12 +1902,41 @@ img {
 }
 
 .estoque-busca {
+  position: relative;
   margin-bottom: 1rem;
+}
+
+.estoque-busca-icone {
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+  pointer-events: none;
 }
 
 .estoque-busca input {
   width: 100%;
   max-width: 340px;
+  padding: 0.7rem 1rem 0.7rem 2.4rem;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--fundo-card);
+  color: var(--texto);
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: var(--transicao);
+}
+
+.estoque-busca input:focus {
+  outline: none;
+  border-color: var(--cor-primaria);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.estoque-busca input::-webkit-search-cancel-button {
+  cursor: pointer;
 }
 
 .acoes-produto {

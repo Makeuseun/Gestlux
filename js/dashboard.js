@@ -343,6 +343,7 @@
       '<section class="card-body estoque-lista">' +
       '<h3>' + esc("Produtos cadastrados") + '</h3>' +
       '<div class="estoque-busca">' +
+      '<i class="fa-solid fa-magnifying-glass estoque-busca-icone" aria-hidden="true"></i>' +
       '<input id="estoque-busca" type="search" placeholder="' + esc("Buscar por nome ou SKU...") +
       '" value="' + esc(buscaEstoque) + '" aria-label="' + esc("Buscar produto") + '" />' +
       '</div>' +
