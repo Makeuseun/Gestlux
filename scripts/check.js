@@ -214,6 +214,57 @@ if (!/Fornecedor habitual/.test(dashboardHtml) || !/Validade do lote/.test(dashb
   falhar('rótulos de fornecedor/validade do lote ausentes');
 }
 
+// 11. RBAC: papéis limitam páginas, ações e acesso ao banco.
+for (const trecho of [
+  'public.papel_atual',
+  'public.registrar_entrada',
+  '"organizacao atualizacao admin"',
+  '"produtos leitura"',
+  '"produtos gestao"',
+  '"movimentacoes leitura"',
+  '"movimentacoes gestao"',
+  '"convites leitura"',
+  "public.papel_atual() = 'admin'",
+  "public.papel_atual() in ('admin', 'gerente')"
+]) {
+  if (!schema.includes(trecho)) falhar('schema.sql não aplica RBAC: ' + trecho);
+}
+if (/create policy "produtos da organizacao" on public\.produtos\s+for all/.test(schema)) {
+  falhar('RLS de produtos continua permissiva para qualquer membro');
+}
+if (/create policy "movimentacoes da organizacao" on public\.movimentacoes\s+for all/.test(schema)) {
+  falhar('RLS de movimentações continua permissiva para qualquer membro');
+}
+if (/create policy "organizacao atualizacao" on public\.organizacoes/.test(schema)) {
+  falhar('qualquer membro ainda pode alterar a organização');
+}
+
+for (const trecho of [
+  'async function exigirPapel',
+  "cliente.rpc('registrar_entrada'",
+  "'admin', 'gerente'",
+  "'admin'",
+  "papel: (perfil.data && perfil.data.papel) || 'operador'"
+]) {
+  if (!backend.includes(trecho)) falhar('backend.js não aplica RBAC: ' + trecho);
+}
+for (const trecho of [
+  'function podeAcessar',
+  'function podeGerenciarProdutos',
+  'semPermissaoHTML',
+  'Sem permissão',
+  "'home', 'inventory', 'reports', 'users'",
+  "'home', 'inventory', 'reports'"
+]) {
+  if (!dashboard.includes(trecho)) falhar('dashboard.js não aplica RBAC: ' + trecho);
+}
+if (!/li\.hidden = !porPapel \|\| !porModulo/.test(dashboard)) {
+  falhar('navegação não esconde itens por papel');
+}
+if (!/if \(!podeAcessar\(nome\)\)/.test(dashboard)) {
+  falhar('navegação direta por hash não foi bloqueada');
+}
+
 if (erros.length) {
   console.error('Falhas de verificação:');
   for (const e of erros) console.error(' - ' + e);

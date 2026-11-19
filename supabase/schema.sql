@@ -194,6 +194,20 @@ as $$
   select organizacao_id from public.perfis where id = auth.uid() limit 1;
 $$;
 
+-- Papel do usuário autenticado. SECURITY DEFINER evita recursão
+-- nas policies que precisam decidir entre admin, gerente e operador.
+create or replace function public.papel_atual()
+returns text
+language sql
+security definer
+set search_path = public
+as $$
+  select papel from public.perfis where id = auth.uid() limit 1;
+$$;
+
+revoke all on function public.papel_atual() from public;
+grant execute on function public.papel_atual() to authenticated;
+
 -- -----------------------------------------------------
 -- Cadastro atômico: cria organização + perfil do usuário.
 -- -----------------------------------------------------
@@ -255,6 +269,10 @@ as $$
 declare
   v_org uuid;
 begin
+  if coalesce(public.papel_atual(), '') <> 'admin' then
+    raise exception 'Somente administradores podem alterar configurações.';
+  end if;
+
   v_org := public.organizacao_atual();
   if v_org is null then
     raise exception 'Organização não encontrada.';
@@ -538,6 +556,69 @@ revoke all on function public.registrar_venda(uuid, integer) from public;
 grant execute on function public.registrar_venda(uuid, integer) to authenticated;
 
 -- -----------------------------------------------------
+-- Reposição atômica: grava a entrada e aumenta o estoque em
+-- uma única transação. Operador pode repor, mas não altera
+-- cadastro de produtos diretamente (a RLS bloqueia o acesso).
+-- -----------------------------------------------------
+create or replace function public.registrar_entrada(
+  p_produto_id uuid,
+  p_quantidade integer,
+  p_observacao text default null,
+  p_fornecedor text default null,
+  p_lote text default null,
+  p_data_validade date default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_org uuid;
+  v_nome text;
+  v_qtd integer;
+begin
+  if coalesce(public.papel_atual(), '') not in ('admin', 'gerente', 'operador') then
+    raise exception 'Sem permissão para registrar entradas.';
+  end if;
+  if p_quantidade is null or p_quantidade <= 0 then
+    raise exception 'Quantidade inválida.';
+  end if;
+
+  v_qtd := p_quantidade;
+  v_org := public.organizacao_atual();
+
+  select nome into v_nome
+  from public.produtos
+  where id = p_produto_id and organizacao_id = v_org
+  for update;
+
+  if not found then
+    raise exception 'Produto não encontrado.';
+  end if;
+
+  insert into public.movimentacoes (
+    organizacao_id, produto_id, produto_nome, tipo, quantidade, valor,
+    observacao, fornecedor, lote, data_validade
+  )
+  values (
+    v_org, p_produto_id, v_nome, 'entrada', v_qtd, 0,
+    nullif(trim(coalesce(p_observacao, '')), ''),
+    nullif(trim(coalesce(p_fornecedor, '')), ''),
+    nullif(trim(coalesce(p_lote, '')), ''),
+    p_data_validade
+  );
+
+  update public.produtos
+  set quantidade = quantidade + v_qtd
+  where id = p_produto_id and organizacao_id = v_org;
+end;
+$$;
+
+revoke all on function public.registrar_entrada(uuid, integer, text, text, text, date) from public;
+grant execute on function public.registrar_entrada(uuid, integer, text, text, text, date) to authenticated;
+
+-- -----------------------------------------------------
 -- Row Level Security
 -- -----------------------------------------------------
 alter table public.organizacoes enable row level security;
@@ -549,55 +630,107 @@ alter table public.convites enable row level security;
 drop policy if exists "organizacao do usuario" on public.organizacoes;
 drop policy if exists "organizacao leitura" on public.organizacoes;
 drop policy if exists "organizacao atualizacao" on public.organizacoes;
+drop policy if exists "organizacao atualizacao admin" on public.organizacoes;
 
--- Leitura e atualização da própria organização.
+-- Leitura para todos os membros; alteração só para admin.
 -- Sem política de DELETE: a organização não pode ser apagada pelo front
 -- (evita cascade apagando perfis, produtos e movimentações).
 create policy "organizacao leitura" on public.organizacoes
-  for select using (id = public.organizacao_atual());
+  for select to authenticated using (id = public.organizacao_atual());
 
-create policy "organizacao atualizacao" on public.organizacoes
-  for update using (id = public.organizacao_atual())
-  with check (id = public.organizacao_atual());
+create policy "organizacao atualizacao admin" on public.organizacoes
+  for update to authenticated
+  using (
+    id = public.organizacao_atual()
+    and public.papel_atual() = 'admin'
+  )
+  with check (
+    id = public.organizacao_atual()
+    and public.papel_atual() = 'admin'
+  );
 
 drop policy if exists "perfil proprio" on public.perfis;
+drop policy if exists "perfis da organizacao" on public.perfis;
+
+-- Operador vê só o próprio perfil; admin/gerente veem a organização.
 create policy "perfil proprio" on public.perfis
-  for select using (id = auth.uid() or organizacao_id = public.organizacao_atual());
+  for select to authenticated
+  using (
+    id = auth.uid()
+    or (
+      public.papel_atual() in ('admin', 'gerente')
+      and organizacao_id = public.organizacao_atual()
+    )
+  );
 
 drop policy if exists "produtos da organizacao" on public.produtos;
-create policy "produtos da organizacao" on public.produtos
-  for all using (organizacao_id = public.organizacao_atual())
-  with check (organizacao_id = public.organizacao_atual());
+drop policy if exists "produtos leitura" on public.produtos;
+drop policy if exists "produtos gestao" on public.produtos;
+
+-- Todos os membros leem o estoque. Só gestão altera o cadastro.
+-- Vendas e reposições passam por RPC security definer.
+create policy "produtos leitura" on public.produtos
+  for select to authenticated
+  using (organizacao_id = public.organizacao_atual());
+
+create policy "produtos gestao" on public.produtos
+  for all to authenticated
+  using (
+    organizacao_id = public.organizacao_atual()
+    and public.papel_atual() in ('admin', 'gerente')
+  )
+  with check (
+    organizacao_id = public.organizacao_atual()
+    and public.papel_atual() in ('admin', 'gerente')
+  );
 
 drop policy if exists "movimentacoes da organizacao" on public.movimentacoes;
-create policy "movimentacoes da organizacao" on public.movimentacoes
-  for all using (organizacao_id = public.organizacao_atual())
-  with check (organizacao_id = public.organizacao_atual());
+drop policy if exists "movimentacoes leitura" on public.movimentacoes;
+drop policy if exists "movimentacoes gestao" on public.movimentacoes;
 
--- Convites só aparecem para quem já pertence à organização.
+-- Relatório é leitura para todos; escrita só por RPC (venda/entrada).
+create policy "movimentacoes leitura" on public.movimentacoes
+  for select to authenticated
+  using (organizacao_id = public.organizacao_atual());
+
+create policy "movimentacoes gestao" on public.movimentacoes
+  for all to authenticated
+  using (
+    organizacao_id = public.organizacao_atual()
+    and public.papel_atual() in ('admin', 'gerente')
+  )
+  with check (
+    organizacao_id = public.organizacao_atual()
+    and public.papel_atual() in ('admin', 'gerente')
+  );
+
+-- Convites só aparecem para admin/gerente.
 -- O convidado lê os dados do link apenas pela RPC detalhes_convite.
 drop policy if exists "convites leitura" on public.convites;
 drop policy if exists "convites criar" on public.convites;
 drop policy if exists "convites cancelar" on public.convites;
 
 create policy "convites leitura" on public.convites
-  for select using (organizacao_id = public.organizacao_atual());
+  for select to authenticated
+  using (
+    organizacao_id = public.organizacao_atual()
+    and public.papel_atual() in ('admin', 'gerente')
+  );
 
 create policy "convites criar" on public.convites
   for insert to authenticated
   with check (
     organizacao_id = public.organizacao_atual()
-    and coalesce((select papel from public.perfis where id = auth.uid()), '') in ('admin', 'gerente')
+    and public.papel_atual() in ('admin', 'gerente')
   );
 
--- Cancelar convite: apenas admins e gerentes da organização.
 create policy "convites cancelar" on public.convites
   for update to authenticated
   using (
     organizacao_id = public.organizacao_atual()
-    and coalesce((select papel from public.perfis where id = auth.uid()), '') in ('admin', 'gerente')
+    and public.papel_atual() in ('admin', 'gerente')
   )
   with check (
     organizacao_id = public.organizacao_atual()
-    and coalesce((select papel from public.perfis where id = auth.uid()), '') in ('admin', 'gerente')
+    and public.papel_atual() in ('admin', 'gerente')
   );

@@ -90,6 +90,19 @@
     };
   }
 
+  async function papelAtual() {
+    const user = await usuario();
+    return (user && user.papel) || 'operador';
+  }
+
+  async function exigirPapel(permitidos, mensagem) {
+    const papel = await papelAtual();
+    if (permitidos.indexOf(papel) === -1) {
+      throw new Error(mensagem || 'Seu papel não tem permissão para esta operação.');
+    }
+    return papel;
+  }
+
   async function iniciar() {
     if (iniciado) return;
     iniciado = true;
@@ -183,6 +196,7 @@
 
   // Preferências do onboarding (respostas + módulos ativos).
   async function salvarOnboarding(respostas, modulos) {
+    await exigirPapel(['admin'], 'Somente administradores podem alterar configurações.');
     const dadosRespostas = respostas && typeof respostas === 'object' ? respostas : {};
     const listaModulos = Array.isArray(modulos) ? modulos.map(String) : [];
 
@@ -238,7 +252,7 @@
         id: user.id,
         nome: (perfil.data && perfil.data.nome) || user.email.split('@')[0],
         email: user.email,
-        papel: (perfil.data && perfil.data.papel) || 'admin',
+        papel: (perfil.data && perfil.data.papel) || 'operador',
         organizacao_id: perfil.data && perfil.data.organizacao_id,
         organizacao: org || { nome: 'Minha organização', segmento: 'varejo', notificacoes: true, respostas: {}, modulos: ['7', '8'] }
       };
@@ -282,6 +296,7 @@
   }
 
   async function adicionarProduto(dados) {
+    await exigirPapel(['admin', 'gerente'], 'Somente administradores e gerentes podem cadastrar produtos.');
     if (modo === 'remoto') {
       const user = await usuario();
       const { data, error } = await cliente.from('produtos').insert([{
@@ -341,6 +356,7 @@
   // Atualiza o cadastro do produto. Se a quantidade mudar,
   // registra uma movimentação de ajuste (entrada ou saída).
   async function atualizarProduto(id, dados) {
+    await exigirPapel(['admin', 'gerente'], 'Somente administradores e gerentes podem editar produtos.');
     const novaQuantidade = Math.round(Number(dados.quantidade));
     if (!isFinite(novaQuantidade) || novaQuantidade < 0) {
       throw new Error('Informe uma quantidade válida.');
@@ -418,6 +434,7 @@
   // registradas, só pode ser excluído com estoque zerado. As movimentações
   // ficam com produto_nome para continuar nos relatórios.
   async function excluirProduto(id) {
+    await exigirPapel(['admin', 'gerente'], 'Somente administradores e gerentes podem excluir produtos.');
     const mensagemEstoque = 'Este produto tem histórico e ainda tem estoque. Zere o estoque para poder excluí-lo.';
 
     if (modo === 'remoto') {
@@ -512,32 +529,15 @@
     const validade = extra.data_validade || null;
 
     if (modo === 'remoto') {
-      const user = await usuario();
-      const produto = await cliente.from('produtos')
-        .select('nome, quantidade')
-        .eq('id', produtoId)
-        .eq('organizacao_id', user.organizacao_id)
-        .maybeSingle();
-      if (!produto.data) throw new Error('Produto não encontrado.');
-
-      const mov = await cliente.from('movimentacoes').insert([{
-        organizacao_id: user.organizacao_id,
-        produto_id: produtoId,
-        produto_nome: produto.data.nome,
-        tipo: 'entrada',
-        quantidade: qtd,
-        valor: 0,
-        observacao: obs,
-        fornecedor: fornecedor,
-        lote: lote,
-        data_validade: validade
-      }]);
-      if (mov.error) throw mov.error;
-
-      const atualiza = await cliente.from('produtos')
-        .update({ quantidade: Number(produto.data.quantidade) + qtd })
-        .eq('id', produtoId);
-      if (atualiza.error) throw atualiza.error;
+      const { error } = await cliente.rpc('registrar_entrada', {
+        p_produto_id: produtoId,
+        p_quantidade: qtd,
+        p_observacao: obs,
+        p_fornecedor: fornecedor,
+        p_lote: lote,
+        p_data_validade: validade || null
+      });
+      if (error) throw error;
       return;
     }
 
@@ -562,6 +562,7 @@
   }
 
   async function salvarConfig(dados) {
+    await exigirPapel(['admin'], 'Somente administradores podem alterar configurações.');
     if (modo === 'remoto') {
       const user = await usuario();
       const { error } = await cliente.from('organizacoes').update({
@@ -583,6 +584,7 @@
   }
 
   async function listarUsuarios() {
+    await exigirPapel(['admin', 'gerente'], 'Somente administradores e gerentes podem ver pessoas.');
     if (modo === 'remoto') {
       const user = await usuario();
       const { data, error } = await cliente.from('perfis')
@@ -649,6 +651,14 @@
     }
     if (!['admin', 'gerente', 'operador'].includes(papel)) throw new Error('Papel inválido.');
 
+    const papelChamador = await exigirPapel(
+      ['admin', 'gerente'],
+      'Somente administradores e gerentes podem convidar.'
+    );
+    if (papelChamador === 'gerente' && papel !== 'operador') {
+      throw new Error('Gerentes podem convidar apenas operadores.');
+    }
+
     if (modo === 'remoto') {
       const { data, error } = await cliente.rpc('criar_convite', {
         p_email: emailLimpo,
@@ -679,6 +689,7 @@
   }
 
   async function listarConvites() {
+    await exigirPapel(['admin', 'gerente'], 'Somente administradores e gerentes podem ver convites.');
     if (modo === 'remoto') {
       const { data, error } = await cliente.from('convites')
         .select('id, email, nome, papel, token, status, criado_em')
@@ -693,6 +704,7 @@
 
   async function cancelarConvite(token) {
     if (!token) return;
+    await exigirPapel(['admin', 'gerente'], 'Somente administradores e gerentes podem cancelar convites.');
     if (modo === 'remoto') {
       const { error } = await cliente.rpc('cancelar_convite', { p_token: token });
       if (error) throw error;
@@ -706,6 +718,10 @@
 
   async function atualizarPapel(usuarioId, papel) {
     if (!['admin', 'gerente', 'operador'].includes(papel)) throw new Error('Papel inválido.');
+    await exigirPapel(['admin'], 'Somente administradores podem alterar papéis.');
+    const eu = await usuario();
+    if (eu && usuarioId === eu.id) throw new Error('Você não pode alterar seu próprio papel.');
+
     if (modo === 'remoto') {
       const { error } = await cliente.rpc('atualizar_papel', {
         p_usuario_id: usuarioId,

@@ -67,6 +67,29 @@
     return modulos.filter(function (m) { return selecionados.indexOf(String(m.id)) !== -1; });
   }
 
+  function papelAtual() {
+    return (usuarioAtual && usuarioAtual.papel) || 'operador';
+  }
+
+  function podeAcessar(view) {
+    const papel = papelAtual();
+    if (papel === 'admin') return true;
+    if (papel === 'gerente') {
+      return ['home', 'inventory', 'reports', 'users'].indexOf(view) !== -1;
+    }
+    return ['home', 'inventory', 'reports'].indexOf(view) !== -1;
+  }
+
+  function podeGerenciarProdutos() {
+    return ['admin', 'gerente'].indexOf(papelAtual()) !== -1;
+  }
+
+  function semPermissaoHTML() {
+    return '<div class="card"><div class="card-header"><h3>' + esc('Sem permissão') + '</h3></div>' +
+      '<div class="card-body"><p class="texto-suave">' +
+      esc('Seu papel não tem acesso a esta área.') + '</p></div></div>';
+  }
+
   function aplicarPreferenciasNav() {
     const org = (usuarioAtual && usuarioAtual.organizacao) || {};
     const temSelecao = !!(org.modulos && org.modulos.length);
@@ -75,9 +98,11 @@
 
     document.querySelectorAll('.sidebar-nav .nav-item').forEach(function (item) {
       const view = item.getAttribute('data-view');
-      if (view !== 'inventory' && view !== 'reports') return;
       const li = item.closest('li');
-      if (li) li.hidden = !usaVarejo;
+      if (!li) return;
+      const porPapel = podeAcessar(view);
+      const porModulo = view === 'inventory' || view === 'reports' ? usaVarejo : true;
+      li.hidden = !porPapel || !porModulo;
     });
   }
 
@@ -298,6 +323,10 @@
   }
 
   function renderModulos(painel, filtro) {
+    if (!podeAcessar('modules')) {
+      painel.innerHTML = semPermissaoHTML();
+      return;
+    }
     const ativos = modulosAtivos();
     const filtrados = filtro === 'todos'
       ? ativos
@@ -366,8 +395,10 @@
       '<section class="card-body estoque-lista">' +
       '<div class="estoque-cabecalho">' +
       '<h3>' + esc("Produtos cadastrados") + '</h3>' +
-      '<button type="button" class="btn btn-primary btn-sm" id="btn-novo-produto">' +
-      '<i class="fa-solid fa-plus" aria-hidden="true"></i> ' + esc("Novo produto") + '</button>' +
+      (podeGerenciarProdutos()
+        ? '<button type="button" class="btn btn-primary btn-sm" id="btn-novo-produto">' +
+          '<i class="fa-solid fa-plus" aria-hidden="true"></i> ' + esc("Novo produto") + '</button>'
+        : '') +
       '</div>' +
       '<div class="estoque-filtros">' +
       '<div class="estoque-busca">' +
@@ -430,6 +461,14 @@
       const baixo = numero(p.quantidade) <= numero(p.minimo);
       const validade = p.data_validade ? new Date(p.data_validade + 'T00:00:00') : null;
       const vencido = validade && validade < hoje;
+      const acoes = '<button type="button" class="btn btn-primary btn-sm btn-repor" data-id="' + esc(p.id) +
+        '" data-nome="' + esc(p.nome) + '">' + esc("Repor") + '</button>' +
+        (podeGerenciarProdutos()
+          ? '<button type="button" class="btn btn-outline btn-sm btn-editar" data-id="' + esc(p.id) +
+            '" aria-label="' + esc("Editar produto") + '">' + esc("Editar") + '</button>' +
+            '<button type="button" class="btn btn-danger btn-sm btn-excluir" data-id="' + esc(p.id) +
+            '" aria-label="' + esc("Excluir produto") + '">' + esc("Excluir") + '</button>'
+          : '');
       return '<tr>' +
         '<td><strong>' + esc(p.nome) + '</strong>' +
         (p.nota_fiscal ? '<small class="produto-nota">NF: ' + esc(p.nota_fiscal) + '</small>' : '') +
@@ -452,14 +491,7 @@
         '<button type="button" class="btn btn-primary btn-sm btn-vender" data-id="' + esc(p.id) +
         '" data-nome="' + esc(p.nome) + '">' + esc("Vender") + '</button>' +
         '</div></td>' +
-        '<td><div class="acoes-produto">' +
-        '<button type="button" class="btn btn-primary btn-sm btn-repor" data-id="' + esc(p.id) +
-        '" data-nome="' + esc(p.nome) + '">' + esc("Repor") + '</button>' +
-        '<button type="button" class="btn btn-outline btn-sm btn-editar" data-id="' + esc(p.id) +
-        '" aria-label="' + esc("Editar produto") + '">' + esc("Editar") + '</button>' +
-        '<button type="button" class="btn btn-danger btn-sm btn-excluir" data-id="' + esc(p.id) +
-        '" aria-label="' + esc("Excluir produto") + '">' + esc("Excluir") + '</button>' +
-        '</div></td></tr>';
+        '<td><div class="acoes-produto">' + acoes + '</div></td></tr>';
     }).join('');
 
     return '<div class="table-responsive"><table class="data-table"><thead><tr>' +
@@ -1097,6 +1129,10 @@
   }
 
   async function renderUsuarios(painel) {
+    if (!podeAcessar('users')) {
+      painel.innerHTML = semPermissaoHTML();
+      return;
+    }
     let pessoas = [];
     let convites = [];
     try {
@@ -1263,6 +1299,10 @@
   }
 
   async function renderConfiguracoes(painel) {
+    if (!podeAcessar('settings')) {
+      painel.innerHTML = semPermissaoHTML();
+      return;
+    }
     let config = {};
 
     if (usuarioAtual && usuarioAtual.organizacao) {
@@ -1398,6 +1438,11 @@
 
   async function irPara(nome) {
     if (!views[nome]) nome = 'home';
+    if (!podeAcessar(nome)) {
+      if (nome !== 'home') toast('Seu papel não tem acesso a esta área.', 'erro');
+      nome = 'home';
+      if (history.replaceState) history.replaceState(null, '', '#home');
+    }
     viewAtual = nome;
 
     document.querySelectorAll('.view').forEach(function (view) {
