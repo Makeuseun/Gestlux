@@ -58,11 +58,13 @@ for (const nome of [
   'index.html',
   'login.html',
   'cadastro.html',
+  'onboarding.html',
   'dashboard.html',
   'css/style.css',
   'favicon.svg',
   'js/config.js',
   'js/backend.js',
+  'js/onboarding.js',
   'supabase/schema.sql',
   'supabase/seed.sql'
 ]) {
@@ -97,6 +99,16 @@ if (abre !== fecha) {
 const seed = fs.readFileSync(path.join(raiz, 'supabase', 'seed.sql'), 'utf8');
 if (!/repet[ií]vel e recuper[aá]vel/i.test(seed)) {
   falhar('seed.sql não está marcado como repetível/recuperável (risco de não restaurar a demo)');
+}
+
+// 7. Onboarding: redirect do cadastro e RPC no banco
+const auth = fs.readFileSync(path.join(raiz, 'js', 'auth.js'), 'utf8');
+if (!/onboarding\.html/.test(auth)) {
+  falhar('auth.js não redireciona o cadastro para onboarding.html');
+}
+const schema = fs.readFileSync(path.join(raiz, 'supabase', 'schema.sql'), 'utf8');
+if (!/salvar_onboarding/.test(schema)) {
+  falhar('schema.sql não define a RPC salvar_onboarding');
 }
 
 if (erros.length) {

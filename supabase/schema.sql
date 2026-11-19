@@ -13,6 +13,8 @@ create table if not exists public.organizacoes (
   nome text not null,
   segmento text not null default 'varejo',
   notificacoes boolean not null default true,
+  respostas jsonb not null default '{}'::jsonb,
+  modulos text[] not null default '{}',
   criado_em timestamptz not null default now()
 );
 
@@ -44,6 +46,7 @@ create table if not exists public.movimentacoes (
   tipo text not null check (tipo in ('entrada', 'saida', 'venda')),
   quantidade integer not null,
   valor numeric(12, 2) not null default 0,
+  observacao text,
   criado_em timestamptz not null default now()
 );
 
@@ -54,6 +57,24 @@ create index if not exists movimentacoes_organizacao_idx on public.movimentacoes
 create unique index if not exists produtos_org_sku_uq on public.produtos (organizacao_id, sku) where sku is not null;
 
 -- -----------------------------------------------------
+-- Migração: preferências de onboarding por organização.
+-- -----------------------------------------------------
+alter table public.organizacoes add column if not exists respostas jsonb not null default '{}'::jsonb;
+alter table public.organizacoes add column if not exists modulos text[] not null default '{}';
+
+-- Organizações criadas antes do onboarding recebem os módulos do segmento,
+-- sem apagar escolhas já salvas.
+update public.organizacoes
+set modulos = case segmento
+  when 'varejo' then array['7', '8']
+  when 'empresarial' then array['1', '2']
+  when 'educacional' then array['3', '4']
+  when 'saude' then array['5', '6']
+  else array['7', '8']
+end
+where coalesce(array_length(modulos, 1), 0) = 0;
+
+-- -----------------------------------------------------
 -- Migração: o histórico sobrevive à exclusão do produto.
 -- produto_id fica anulável (on delete set null) e o nome do
 -- produto é denormalizado em produto_nome para os relatórios.
@@ -61,6 +82,7 @@ create unique index if not exists produtos_org_sku_uq on public.produtos (organi
 -- apagar as vendas registradas. Seguro para rodar de novo.
 -- -----------------------------------------------------
 alter table public.movimentacoes add column if not exists produto_nome text;
+alter table public.movimentacoes add column if not exists observacao text;
 
 -- Movimentações antigas ganham o nome do produto (para sobreviver
 -- à exclusão dele nos relatórios).
@@ -134,8 +156,18 @@ begin
     return public.organizacao_atual();
   end if;
 
-  insert into public.organizacoes (nome, segmento)
-  values (p_nome, p_segmento)
+  insert into public.organizacoes (nome, segmento, modulos)
+  values (
+    p_nome,
+    p_segmento,
+    case p_segmento
+      when 'varejo' then array['7', '8']
+      when 'empresarial' then array['1', '2']
+      when 'educacional' then array['3', '4']
+      when 'saude' then array['5', '6']
+      else array[]::text[]
+    end
+  )
   returning id into v_org;
 
   insert into public.perfis (id, organizacao_id, nome, email, papel)
@@ -147,6 +179,37 @@ $$;
 
 revoke all on function public.criar_organizacao(text, text, text, text) from public;
 grant execute on function public.criar_organizacao(text, text, text, text) to authenticated;
+
+-- -----------------------------------------------------
+-- Onboarding: salva as respostas e os módulos escolhidos
+-- apenas na organização do usuário autenticado.
+-- -----------------------------------------------------
+create or replace function public.salvar_onboarding(
+  p_respostas jsonb,
+  p_modulos text[]
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_org uuid;
+begin
+  v_org := public.organizacao_atual();
+  if v_org is null then
+    raise exception 'Organização não encontrada.';
+  end if;
+
+  update public.organizacoes
+  set respostas = coalesce(p_respostas, '{}'::jsonb),
+      modulos = coalesce(p_modulos, array[]::text[])
+  where id = v_org;
+end;
+$$;
+
+revoke all on function public.salvar_onboarding(jsonb, text[]) from public;
+grant execute on function public.salvar_onboarding(jsonb, text[]) to authenticated;
 
 -- -----------------------------------------------------
 -- Venda atômica: valida estoque, grava a movimentação e

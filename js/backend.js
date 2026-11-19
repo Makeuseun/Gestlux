@@ -50,7 +50,7 @@
     });
 
     return {
-      organizacao: { id: 'local-org', nome: 'Loja Central (exemplo)', segmento: 'varejo', notificacoes: true },
+      organizacao: { id: 'local-org', nome: 'Loja Central (exemplo)', segmento: 'varejo', notificacoes: true, respostas: {}, modulos: ['7', '8'] },
       usuarios: [{ nome: 'Usuário Demo', email: 'demo@gestlux.com.br', papel: 'admin' }],
       produtos: produtos,
       movimentacoes: movimentacoes
@@ -155,6 +155,26 @@
     return usuarioLocal();
   }
 
+  // Preferências do onboarding (respostas + módulos ativos).
+  async function salvarOnboarding(respostas, modulos) {
+    const dadosRespostas = respostas && typeof respostas === 'object' ? respostas : {};
+    const listaModulos = Array.isArray(modulos) ? modulos.map(String) : [];
+
+    if (modo === 'remoto') {
+      const { error } = await cliente.rpc('salvar_onboarding', {
+        p_respostas: dadosRespostas,
+        p_modulos: listaModulos
+      });
+      if (error) throw error;
+      return;
+    }
+
+    const atual = db();
+    atual.organizacao.respostas = dadosRespostas;
+    atual.organizacao.modulos = listaModulos;
+    salvarDb();
+  }
+
   async function logout() {
     if (modo === 'remoto') {
       await cliente.auth.signOut();
@@ -182,7 +202,7 @@
       if (perfil.data && perfil.data.organizacao_id) {
         const orgResult = await cliente
           .from('organizacoes')
-          .select('nome, segmento, notificacoes')
+          .select('nome, segmento, notificacoes, respostas, modulos')
           .eq('id', perfil.data.organizacao_id)
           .maybeSingle();
         org = orgResult.data;
@@ -193,7 +213,7 @@
         email: user.email,
         papel: (perfil.data && perfil.data.papel) || 'admin',
         organizacao_id: perfil.data && perfil.data.organizacao_id,
-        organizacao: org || { nome: 'Minha organização', segmento: 'varejo', notificacoes: true }
+        organizacao: org || { nome: 'Minha organização', segmento: 'varejo', notificacoes: true, respostas: {}, modulos: ['7', '8'] }
       };
     }
     return usuarioLocal();
@@ -390,6 +410,56 @@
     salvarDb();
   }
 
+  // Entrada manual de estoque: sempre gera uma movimentação do tipo "entrada".
+  async function registrarEntrada(produtoId, quantidade, observacao) {
+    const qtd = Number(quantidade);
+    if (!qtd || qtd <= 0) throw new Error('Informe uma quantidade válida.');
+    const obs = String(observacao || '').trim().slice(0, 200);
+
+    if (modo === 'remoto') {
+      const user = await usuario();
+      const produto = await cliente.from('produtos')
+        .select('nome, quantidade')
+        .eq('id', produtoId)
+        .eq('organizacao_id', user.organizacao_id)
+        .maybeSingle();
+      if (!produto.data) throw new Error('Produto não encontrado.');
+
+      const mov = await cliente.from('movimentacoes').insert([{
+        organizacao_id: user.organizacao_id,
+        produto_id: produtoId,
+        produto_nome: produto.data.nome,
+        tipo: 'entrada',
+        quantidade: qtd,
+        valor: 0,
+        observacao: obs
+      }]);
+      if (mov.error) throw mov.error;
+
+      const atualiza = await cliente.from('produtos')
+        .update({ quantidade: Number(produto.data.quantidade) + qtd })
+        .eq('id', produtoId);
+      if (atualiza.error) throw atualiza.error;
+      return;
+    }
+
+    const atual = db();
+    const produto = atual.produtos.find(function (p) { return p.id === produtoId; });
+    if (!produto) throw new Error('Produto não encontrado.');
+    produto.quantidade = Number(produto.quantidade) + qtd;
+    atual.movimentacoes.push({
+      id: uid(),
+      produto_id: produtoId,
+      produto_nome: produto.nome,
+      tipo: 'entrada',
+      quantidade: qtd,
+      valor: 0,
+      observacao: obs,
+      criado_em: new Date().toISOString()
+    });
+    salvarDb();
+  }
+
   async function salvarConfig(dados) {
     if (modo === 'remoto') {
       const user = await usuario();
@@ -401,12 +471,12 @@
       if (error) throw error;
       return;
     }
-    db().organizacao = {
+    db().organizacao = Object.assign({}, db().organizacao || {}, {
       id: 'local-org',
       nome: dados.organizacao,
       segmento: dados.segmento,
       notificacoes: dados.notificacoes
-    };
+    });
     localStorage.setItem('gestlux_config', JSON.stringify(dados));
     salvarDb();
   }
@@ -436,6 +506,8 @@
     atualizarProduto: atualizarProduto,
     excluirProduto: excluirProduto,
     registrarVenda: registrarVenda,
+    registrarEntrada: registrarEntrada,
+    salvarOnboarding: salvarOnboarding,
     salvarConfig: salvarConfig,
     listarUsuarios: listarUsuarios
   };

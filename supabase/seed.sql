@@ -30,8 +30,8 @@ begin
   where id = v_user;
 
   if v_org is null then
-    insert into public.organizacoes (nome, segmento, notificacoes)
-    values ('Loja Central (exemplo)', 'varejo', true)
+    insert into public.organizacoes (nome, segmento, notificacoes, modulos)
+    values ('Loja Central (exemplo)', 'varejo', true, array['7', '8'])
     returning id into v_org;
 
     insert into public.perfis (id, organizacao_id, nome, email, papel)
@@ -39,8 +39,8 @@ begin
 
     raise notice 'Organizacao e perfil criados.';
   elsif not exists (select 1 from public.organizacoes where id = v_org) then
-    insert into public.organizacoes (nome, segmento, notificacoes)
-    values ('Loja Central (exemplo)', 'varejo', true)
+    insert into public.organizacoes (nome, segmento, notificacoes, modulos)
+    values ('Loja Central (exemplo)', 'varejo', true, array['7', '8'])
     returning id into v_org;
 
     update public.perfis

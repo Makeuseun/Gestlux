@@ -152,6 +152,28 @@
           <button type="submit" class="btn btn-primary">Salvar alterações</button>
         </div>
       </form>
+      <div class="modal-historico">
+        <h4>Histórico do produto</h4>
+        <div id="modal-historico"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal-entrada" hidden role="dialog" aria-modal="true" aria-labelledby="modal-entrada-titulo">
+    <div class="modal-caixa">
+      <h3 id="modal-entrada-titulo">Repor estoque</h3>
+      <p class="entrada-produto">Produto: <strong id="entrada-produto-nome"></strong></p>
+      <form id="modal-entrada-form" class="config-form">
+        <input type="hidden" id="entrada-produto-id" />
+        <div class="form-group"><label for="entrada-qtd">Quantidade a adicionar</label>
+          <input id="entrada-qtd" type="number" min="1" step="1" required placeholder="Ex: 20" /></div>
+        <div class="form-group"><label for="entrada-obs">Observação (opcional)</label>
+          <input id="entrada-obs" type="text" maxlength="200" placeholder="Ex: nota fiscal 12345" /></div>
+        <div class="modal-acoes">
+          <button type="button" class="btn btn-outline" id="entrada-cancelar">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Registrar entrada</button>
+        </div>
+      </form>
     </div>
   </div>
 

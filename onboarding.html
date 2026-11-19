@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Personalizar painel | Gestlux</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-container onboarding-container">
+      <div class="auth-brand">
+        <img class="logo-icon" src="favicon.svg" alt="" aria-hidden="true" />
+        <span class="logo-text">Gest<span class="accent">lux</span></span>
+      </div>
+      <div class="auth-card onboarding-card">
+        <h2>Personalize seu painel</h2>
+        <p>Responda algumas perguntas rápidas e escolha os módulos que fazem sentido para sua operação.</p>
+        <p class="onboarding-segmento">Segmento: <strong id="onboarding-segmento">—</strong></p>
+        <p class="auth-aviso onboarding-aviso">
+          Nesta versão, o varejo é o único módulo operacional. Os demais mostram o roadmap e estão marcados como vitrine ou em breve.
+        </p>
+
+        <form id="onboarding-form" class="config-form">
+          <h3>Sobre sua operação</h3>
+          <div id="onboarding-perguntas"></div>
+
+          <h3>Módulos desejados</h3>
+          <div id="onboarding-modulos" class="modulos-opcoes"></div>
+
+          <div class="modal-acoes">
+            <a href="dashboard.html" class="btn btn-outline" id="onboarding-pular">Pular por agora</a>
+            <button type="submit" class="btn btn-primary">Salvar e entrar</button>
+          </div>
+        </form>
+        <p class="auth-aviso" id="modo-aviso">Carregando modo de operação...</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/theme.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="js/backend.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/onboarding.js"></script>
+</body>
+</html>

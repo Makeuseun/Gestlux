@@ -12,6 +12,8 @@
   let dados = { produtos: [], movimentacoes: [] };
   let usuarioAtual = null;
   let buscaEstoque = '';
+  let filtroInicio = '';
+  let filtroFim = '';
 
   function esc(valor) {
     return String(valor == null ? '' : valor).replace(/[&<>"']/g, function (c) {
@@ -41,9 +43,38 @@
     });
   }
 
+  function modulosAtivos() {
+    const org = (usuarioAtual && usuarioAtual.organizacao) || {};
+    const selecionados = (org.modulos || []).map(String);
+    if (!selecionados.length) return modulos.slice();
+    return modulos.filter(function (m) { return selecionados.indexOf(String(m.id)) !== -1; });
+  }
+
+  function aplicarPreferenciasNav() {
+    const org = (usuarioAtual && usuarioAtual.organizacao) || {};
+    const temSelecao = !!(org.modulos && org.modulos.length);
+    const ativos = modulosAtivos().map(function (m) { return String(m.id); });
+    const usaVarejo = !temSelecao || ativos.indexOf('7') !== -1 || ativos.indexOf('8') !== -1;
+
+    document.querySelectorAll('.sidebar-nav .nav-item').forEach(function (item) {
+      const view = item.getAttribute('data-view');
+      if (view !== 'inventory' && view !== 'reports') return;
+      const li = item.closest('li');
+      if (li) li.hidden = !usaVarejo;
+    });
+  }
+
   function dataCurta(iso) {
     const d = new Date(iso);
     return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('pt-BR');
+  }
+
+  function dataHora(iso) {
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? '—' : d.toLocaleString('pt-BR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
   }
 
   function chaveDia(d) {
@@ -103,10 +134,25 @@
 
   function atualizarCabecalho() {
     const cfg = views[viewAtual] || views.home;
+    const org = (usuarioAtual && usuarioAtual.organizacao) || {};
+    const nomeOrg = String(org.nome || '').trim();
+    const segmento = String(org.segmento || 'varejo');
+    const rotuloSegmento = {
+      empresarial: 'Empresarial', educacional: 'Educacional',
+      saude: 'Saúde', varejo: 'Varejo', outro: 'Outro'
+    }[segmento] || segmento;
+
+    let subtituloTexto = cfg.subtitle;
+    if (nomeOrg && viewAtual === 'home') {
+      subtituloTexto = 'Indicadores reais de ' + nomeOrg + ' · ' + rotuloSegmento + '.';
+    } else if (nomeOrg && viewAtual === 'modules') {
+      subtituloTexto = 'Módulos ativos em ' + nomeOrg + ' · ' + rotuloSegmento + '.';
+    }
+
     const titulo = document.getElementById('view-title');
     const subtitulo = document.getElementById('view-subtitle');
     if (titulo) titulo.textContent = cfg.title;
-    if (subtitulo) subtitulo.textContent = cfg.subtitle;
+    if (subtitulo) subtitulo.textContent = subtituloTexto;
     atualizarModoBadge();
   }
 
@@ -235,9 +281,10 @@
   }
 
   function renderModulos(painel, filtro) {
+    const ativos = modulosAtivos();
     const filtrados = filtro === 'todos'
-      ? modulos
-      : modulos.filter(function (m) { return m.tema === filtro; });
+      ? ativos
+      : ativos.filter(function (m) { return m.tema === filtro; });
 
     const temas = ['todos', 'empresarial', 'educacional', 'saude', 'varejo'];
     const rotulos = {
@@ -256,14 +303,16 @@
       }).join('') +
       '</div>' +
       '<div class="modulos-grid">' +
-      filtrados.map(function (m) {
-        return '<article class="modulo-card">' +
-          '<div class="modulo-icon"><i class="' + esc(m.icone) + '"></i></div>' +
-          '<h3>' + esc(m.titulo) + '</h3><p>' + esc(m.descricao) + '</p>' +
-          '<div class="modulo-tags">' + m.tags.map(function (tag) {
-            return '<span class="modulo-tag">' + esc(tag) + '</span>';
-          }).join('') + '</div></article>';
-      }).join('') +
+      (filtrados.length
+        ? filtrados.map(function (m) {
+          return '<article class="modulo-card">' +
+            '<div class="modulo-icon"><i class="' + esc(m.icone) + '"></i></div>' +
+            '<h3>' + esc(m.titulo) + '</h3><p>' + esc(m.descricao) + '</p>' +
+            '<div class="modulo-tags">' + m.tags.map(function (tag) {
+              return '<span class="modulo-tag">' + esc(tag) + '</span>';
+            }).join('') + '</div></article>';
+        }).join('')
+        : '<p class="modulos-vazios">' + esc("Nenhum módulo ativo neste filtro. Ajuste em Configurações.") + '</p>') +
       '</div>';
 
     painel.querySelectorAll('.chip').forEach(function (chip) {
@@ -284,11 +333,11 @@
       '<div class="form-group"><label for="prod-sku">' + esc("SKU") + '</label>' +
       '<input id="prod-sku" class="demo-answer" placeholder="Ex: CAM-001" /></div>' +
       '<div class="form-group"><label for="prod-preco">' + esc("Preço (R$)") + '</label>' +
-      '<input id="prod-preco" class="demo-answer" type="number" min="0" step="0.01" required value="0" /></div>' +
+      '<input id="prod-preco" class="demo-answer" type="number" min="0" step="0.01" required placeholder="Ex: 79,90" /></div>' +
       '<div class="form-group"><label for="prod-qtd">' + esc("Quantidade") + '</label>' +
-      '<input id="prod-qtd" class="demo-answer" type="number" min="0" step="1" required value="0" /></div>' +
+      '<input id="prod-qtd" class="demo-answer" type="number" min="0" step="1" required placeholder="Ex: 120" /></div>' +
       '<div class="form-group"><label for="prod-min">' + esc("Estoque mínimo") + '</label>' +
-      '<input id="prod-min" class="demo-answer" type="number" min="0" step="1" value="0" /></div>' +
+      '<input id="prod-min" class="demo-answer" type="number" min="0" step="1" placeholder="Ex: 20" /></div>' +
       '<button type="submit" class="btn btn-primary">' + esc("Adicionar produto") + '</button>' +
       '</form></section>' +
       '<section class="card-body estoque-lista">' +
@@ -354,6 +403,8 @@
         '" data-nome="' + esc(p.nome) + '">' + esc("Vender") + '</button>' +
         '</div></td>' +
         '<td><div class="acoes-produto">' +
+        '<button type="button" class="btn btn-primary btn-sm btn-repor" data-id="' + esc(p.id) +
+        '" data-nome="' + esc(p.nome) + '">' + esc("Repor") + '</button>' +
         '<button type="button" class="btn btn-outline btn-sm btn-editar" data-id="' + esc(p.id) +
         '" aria-label="' + esc("Editar produto") + '">' + esc("Editar") + '</button>' +
         '<button type="button" class="btn btn-danger btn-sm btn-excluir" data-id="' + esc(p.id) +
@@ -468,6 +519,12 @@
         return;
       }
 
+      if (botao.classList.contains('btn-repor')) {
+        const produto = dados.produtos.find(function (p) { return p.id === botao.getAttribute('data-id'); });
+        if (produto) abrirModalEntrada(produto);
+        return;
+      }
+
       if (botao.classList.contains('btn-editar')) {
         const produto = dados.produtos.find(function (p) { return p.id === botao.getAttribute('data-id'); });
         if (produto) abrirModalProduto(produto);
@@ -500,6 +557,25 @@
     });
   }
 
+  function historicoProdutoHTML(produto) {
+    const movs = dados.movimentacoes.filter(function (m) {
+      return m.produto_id === produto.id || (!m.produto_id && m.produto_nome === produto.nome);
+    }).slice(0, 10);
+
+    if (!movs.length) {
+      return '<p class="historico-vazio">Nenhuma movimentação registrada.</p>';
+    }
+
+    const rotulos = { venda: "Venda", entrada: "Entrada", saida: "Saída" };
+    return '<ul class="historico-lista">' + movs.map(function (m) {
+      return '<li><span>' + esc(dataHora(m.criado_em)) + '</span>' +
+        '<strong>' + esc(rotulos[m.tipo] || m.tipo) + '</strong>' +
+        '<span>' + numero(m.quantidade) + ' un.</span>' +
+        (m.observacao ? '<em>' + esc(m.observacao) + '</em>' : '') +
+        '</li>';
+    }).join('') + '</ul>';
+  }
+
   function abrirModalProduto(produto) {
     const modal = document.getElementById('modal-produto');
     if (!modal || !produto) return;
@@ -510,6 +586,9 @@
     document.getElementById('modal-preco').value = numero(produto.preco);
     document.getElementById('modal-qtd').value = numero(produto.quantidade);
     document.getElementById('modal-min').value = numero(produto.minimo);
+
+    const historico = document.getElementById('modal-historico');
+    if (historico) historico.innerHTML = historicoProdutoHTML(produto);
 
     modal.hidden = false;
     document.getElementById('modal-nome').focus();
@@ -574,16 +653,94 @@
     });
   }
 
-  function exportarCSV() {
-    const linhas = [["Data", "Produto", "Tipo", "Qtd", "Valor"]];
+  function abrirModalEntrada(produto) {
+    const modal = document.getElementById('modal-entrada');
+    if (!modal || !produto) return;
 
-    dados.movimentacoes.forEach(function (m) {
+    document.getElementById('entrada-produto-id').value = produto.id;
+    document.getElementById('entrada-produto-nome').textContent = produto.nome;
+    document.getElementById('entrada-qtd').value = '';
+    document.getElementById('entrada-obs').value = '';
+    modal.hidden = false;
+    document.getElementById('entrada-qtd').focus();
+  }
+
+  function fecharModalEntrada() {
+    const modal = document.getElementById('modal-entrada');
+    if (modal) modal.hidden = true;
+  }
+
+  function registrarEventosEntrada() {
+    const modal = document.getElementById('modal-entrada');
+    if (!modal) return;
+
+    const cancelar = document.getElementById('entrada-cancelar');
+    if (cancelar) cancelar.addEventListener('click', fecharModalEntrada);
+
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) fecharModalEntrada();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !modal.hidden) fecharModalEntrada();
+    });
+
+    const form = document.getElementById('modal-entrada-form');
+    if (!form) return;
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const quantidade = Number(document.getElementById('entrada-qtd').value);
+      if (!quantidade || quantidade <= 0) {
+        toast("Informe uma quantidade maior que zero.", 'erro');
+        return;
+      }
+
+      const btn = form.querySelector('button[type="submit"]');
+      btn.textContent = '...';
+      btn.disabled = true;
+
+      try {
+        if (!B) throw new Error('Backend indisponível.');
+        await B.registrarEntrada(
+          document.getElementById('entrada-produto-id').value,
+          quantidade,
+          document.getElementById('entrada-obs').value.trim()
+        );
+        fecharModalEntrada();
+        toast(substituir("Entrada registrada: {q} unidade(s) de {n}.", {
+          q: quantidade,
+          n: document.getElementById('entrada-produto-nome').textContent
+        }));
+        await recarregarEAtualizar();
+      } catch (erro) {
+        toast((erro && erro.message) || "Não foi possível registrar a entrada.", 'erro');
+      }
+      btn.textContent = "Registrar entrada";
+      btn.disabled = false;
+    });
+  }
+
+  function movimentacoesFiltradas() {
+    const ini = filtroInicio ? new Date(filtroInicio).getTime() : -Infinity;
+    const fim = filtroFim ? new Date(filtroFim).getTime() : Infinity;
+    return dados.movimentacoes.filter(function (m) {
+      const t = new Date(m.criado_em).getTime();
+      return t >= ini && t <= fim;
+    });
+  }
+
+  function exportarCSV() {
+    const linhas = [["Data e hora", "Produto", "Tipo", "Qtd", "Valor", "Observação"]];
+
+    movimentacoesFiltradas().forEach(function (m) {
       linhas.push([
-        new Date(m.criado_em).toLocaleString('pt-BR'),
+        dataHora(m.criado_em),
         nomeProduto(m),
         m.tipo,
         numero(m.quantidade),
-        numero(m.valor).toFixed(2)
+        numero(m.valor).toFixed(2),
+        m.observacao || ''
       ]);
     });
 
@@ -601,45 +758,88 @@
     link.click();
     document.body.removeChild(link);
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-    toast("Arquivo CSV exportado.");
+    toast("Arquivo CSV exportado com o filtro do período.");
   }
 
-  function renderRelatorios(painel) {
-    const vendas = vendas30();
+  function relatorioResumoHTML() {
+    const vendas = movimentacoesFiltradas().filter(function (m) { return m.tipo === 'venda'; });
     const total = vendas.reduce(function (soma, m) { return soma + numero(m.valor); }, 0);
     const ticket = vendas.length ? total / vendas.length : 0;
 
-    const movimentacoes = dados.movimentacoes.slice(0, 50);
-    const corpo = movimentacoes.length
-      ? movimentacoes.map(function (m) {
-        return '<tr>' +
-          '<td>' + esc(dataCurta(m.criado_em)) + '</td>' +
-          '<td>' + esc(nomeProduto(m)) + '</td>' +
-          '<td>' + esc(({ venda: "Venda", entrada: "Entrada", saida: "Saída" }[m.tipo] || m.tipo)) + '</td>' +
-          '<td>' + numero(m.quantidade) + '</td>' +
-          '<td>' + esc(dinheiro(m.valor)) + '</td>' +
-          '</tr>';
-      }).join('')
-      : '<tr><td colspan="5" class="tabela-vazia">' + esc("Nenhum registro ainda.") + '</td></tr>';
-
-    painel.innerHTML =
-      '<div class="resumo-cards">' +
-      '<div class="resumo-card"><span>' + esc("Total vendido (30 dias)") + '</span><strong>' + esc(dinheiro(total)) + '</strong></div>' +
+    return '<div class="resumo-card"><span>' + esc("Total vendido no período") + '</span><strong>' + esc(dinheiro(total)) + '</strong></div>' +
       '<div class="resumo-card"><span>' + esc("Ticket médio") + '</span><strong>' + esc(dinheiro(ticket)) + '</strong></div>' +
-      '<div class="resumo-card"><span>' + esc("Vendas registradas") + '</span><strong>' + vendas.length + '</strong></div>' +
+      '<div class="resumo-card"><span>' + esc("Vendas no período") + '</span><strong>' + vendas.length + '</strong></div>';
+  }
+
+  function relatorioCorpoHTML() {
+    const movs = movimentacoesFiltradas().slice(0, 50);
+    if (!movs.length) {
+      return '<tr><td colspan="6" class="tabela-vazia">' + esc("Nenhum registro no período.") + '</td></tr>';
+    }
+
+    const rotulos = { venda: "Venda", entrada: "Entrada", saida: "Saída" };
+    return movs.map(function (m) {
+      return '<tr>' +
+        '<td>' + esc(dataHora(m.criado_em)) + '</td>' +
+        '<td>' + esc(nomeProduto(m)) + '</td>' +
+        '<td>' + esc(rotulos[m.tipo] || m.tipo) + '</td>' +
+        '<td>' + numero(m.quantidade) + '</td>' +
+        '<td>' + esc(dinheiro(m.valor)) + '</td>' +
+        '<td>' + esc(m.observacao || '—') + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function atualizarRelatorio() {
+    const resumo = document.getElementById('relatorio-resumo');
+    const corpo = document.getElementById('relatorio-corpo');
+    if (resumo) resumo.innerHTML = relatorioResumoHTML();
+    if (corpo) corpo.innerHTML = relatorioCorpoHTML();
+  }
+
+  function renderRelatorios(painel) {
+    painel.innerHTML =
+      '<div class="relatorio-filtros">' +
+      '<label>' + esc("De") + ' <input type="datetime-local" id="filtro-inicio" value="' + esc(filtroInicio) + '" aria-label="' + esc("Início do período") + '" /></label>' +
+      '<label>' + esc("Até") + ' <input type="datetime-local" id="filtro-fim" value="' + esc(filtroFim) + '" aria-label="' + esc("Fim do período") + '" /></label>' +
+      '<button type="button" class="btn btn-outline btn-sm" id="filtro-limpar">' + esc("Limpar") + '</button>' +
       '</div>' +
+      '<div class="resumo-cards" id="relatorio-resumo">' + relatorioResumoHTML() + '</div>' +
       '<div class="card-header relatorio-header">' +
-      '<h3>' + esc("Movimentações recentes") + '</h3>' +
+      '<h3>' + esc("Movimentações no período") + '</h3>' +
       '<button type="button" class="btn btn-outline btn-sm" id="btn-exportar">' + esc("Exportar CSV") + '</button>' +
       '</div>' +
       '<div class="card-body table-responsive">' +
       '<table class="data-table"><thead><tr>' +
-      '<th>' + esc("Data") + '</th>' +
+      '<th>' + esc("Data e hora") + '</th>' +
       '<th>' + esc("Produto") + '</th>' +
       '<th>' + esc("Tipo") + '</th>' +
       '<th>' + esc("Qtd") + '</th>' +
       '<th>' + esc("Valor") + '</th>' +
-      '</tr></thead><tbody>' + corpo + '</tbody></table></div>';
+      '<th>' + esc("Observação") + '</th>' +
+      '</tr></thead><tbody id="relatorio-corpo">' + relatorioCorpoHTML() + '</tbody></table></div>';
+
+    ['filtro-inicio', 'filtro-fim'].forEach(function (id) {
+      const campo = document.getElementById(id);
+      if (campo) {
+        campo.addEventListener('change', function () {
+          filtroInicio = document.getElementById('filtro-inicio').value;
+          filtroFim = document.getElementById('filtro-fim').value;
+          atualizarRelatorio();
+        });
+      }
+    });
+
+    const limpar = document.getElementById('filtro-limpar');
+    if (limpar) {
+      limpar.addEventListener('click', function () {
+        filtroInicio = '';
+        filtroFim = '';
+        document.getElementById('filtro-inicio').value = '';
+        document.getElementById('filtro-fim').value = '';
+        atualizarRelatorio();
+      });
+    }
 
     const botao = document.getElementById('btn-exportar');
     if (botao) botao.addEventListener('click', exportarCSV);
@@ -681,7 +881,8 @@
       config = {
         organizacao: usuarioAtual.organizacao.nome || '',
         segmento: usuarioAtual.organizacao.segmento || 'varejo',
-        notificacoes: !!usuarioAtual.organizacao.notificacoes
+        notificacoes: !!usuarioAtual.organizacao.notificacoes,
+        modulos: (usuarioAtual.organizacao.modulos || []).map(String)
       };
     }
 
@@ -692,6 +893,8 @@
         config = {};
       }
     }
+
+    const modulosSelecionados = Array.isArray(config.modulos) ? config.modulos.map(String) : [];
 
     painel.innerHTML =
       '<div class="card-body config-card">' +
@@ -709,6 +912,19 @@
           esc(({ business: "Empresarial", education: "Educacional", health: "Saúde", retail: "Varejo" }[chave] || chave)) + '</option>';
       }).join('') +
       '</select></div>' +
+      '<fieldset class="config-modulos"><legend>' + esc("Módulos ativos") + '</legend>' +
+      '<p class="config-aviso">' + esc("Nesta versão apenas o varejo é operacional; os demais aparecem como vitrine ou em breve.") + '</p>' +
+      modulos.map(function (m) {
+        const emBreve = (m.tags || []).some(function (tag) { return /em breve/i.test(tag); }) ||
+          /em desenvolvimento/i.test(m.descricao || '');
+        const selo = emBreve ? 'em breve' : (m.tema !== 'varejo' ? 'vitrine' : 'operacional');
+        return '<label class="config-modulo-opcao">' +
+          '<input type="checkbox" class="cfg-modulo" value="' + esc(m.id) + '"' +
+          (modulosSelecionados.indexOf(String(m.id)) !== -1 ? ' checked' : '') + ' />' +
+          '<span>' + esc(m.titulo) + '</span>' +
+          '<em class="modulo-selo modulo-selo-' + selo.replace(/\s+/g, '-') + '">' + esc(selo) + '</em></label>';
+      }).join('') +
+      '</fieldset>' +
       '<div class="form-group form-check"><input type="checkbox" id="cfg-notificacoes"' +
       (config.notificacoes ? ' checked' : '') + ' />' +
       '<label for="cfg-notificacoes">' + esc("Receber notificações por e-mail") + '</label></div>' +
@@ -725,6 +941,20 @@
       btn.textContent = '...';
       btn.disabled = true;
 
+      const modulosEscolhidos = [];
+      form.querySelectorAll('.cfg-modulo:checked').forEach(function (input) {
+        modulosEscolhidos.push(input.value);
+      });
+      if (!modulosEscolhidos.length) {
+        toast("Selecione ao menos um módulo para continuar.", 'erro');
+        btn.textContent = textoOriginal;
+        btn.disabled = false;
+        return;
+      }
+
+      const respostasAtuais =
+        (usuarioAtual && usuarioAtual.organizacao && usuarioAtual.organizacao.respostas) || {};
+
       const dadosConfig = {
         organizacao: document.getElementById('cfg-nome').value.trim(),
         segmento: document.getElementById('cfg-segmento').value,
@@ -733,11 +963,17 @@
 
       try {
         await B.salvarConfig(dadosConfig);
+        await B.salvarOnboarding(respostasAtuais, modulosEscolhidos);
+
         if (usuarioAtual && usuarioAtual.organizacao) {
           usuarioAtual.organizacao.nome = dadosConfig.organizacao;
           usuarioAtual.organizacao.segmento = dadosConfig.segmento;
           usuarioAtual.organizacao.notificacoes = dadosConfig.notificacoes;
+          usuarioAtual.organizacao.respostas = respostasAtuais;
+          usuarioAtual.organizacao.modulos = modulosEscolhidos;
         }
+        aplicarPreferenciasNav();
+        atualizarCabecalho();
         toast((B.remoto ? "Configurações salvas no Supabase." : "Configurações salvas neste navegador."));
       } catch (erro) {
         toast((erro && erro.message) || "Não foi possível concluir a operação.", 'erro');
@@ -818,6 +1054,7 @@
     });
 
     registrarEventosModal();
+    registrarEventosEntrada();
   }
 
   async function init() {
@@ -827,6 +1064,7 @@
 
     registrarEventos();
     await carregar();
+    aplicarPreferenciasNav();
     await irPara((location.hash || '#home').replace('#', ''));
   }
 

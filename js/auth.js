@@ -111,7 +111,7 @@
           segmento: document.getElementById('segmento').value
         };
         await B.cadastro(dados.nome, dados.email, dados.senha, dados.segmento);
-        window.location.href = 'dashboard.html';
+        window.location.href = 'onboarding.html';
       } catch (erro) {
         toast((erro && erro.message) || 'Não foi possível criar a conta.', 'erro');
         btn.textContent = textoOriginal;

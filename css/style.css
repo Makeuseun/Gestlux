@@ -2,6 +2,8 @@
    GESTÃO FLOW - PROTÓTIPO
    =========================== */
 
+[hidden] { display: none !important; }
+
 /* Variáveis de tema */
 :root {
   --cor-primaria: #2563eb;
@@ -1964,6 +1966,83 @@ img {
   justify-content: flex-end;
 }
 
+.modal-historico {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--borda);
+}
+
+.modal-historico h4 {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.historico-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: 0.8rem;
+}
+
+.historico-lista li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--borda);
+  color: var(--texto-suave);
+}
+
+.historico-lista li strong {
+  color: var(--texto);
+}
+
+.historico-lista li em {
+  flex-basis: 100%;
+  font-size: 0.75rem;
+}
+
+.historico-vazio {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+}
+
+.entrada-produto {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.relatorio-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+
+.relatorio-filtros label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+}
+
+.relatorio-filtros input {
+  padding: 0.5rem;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--fundo-card);
+  color: var(--texto);
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
 .tabela-vazia {
   padding: 1.5rem;
   text-align: center;
@@ -2012,4 +2091,129 @@ img {
   .resumo-cards {
     grid-template-columns: 1fr;
   }
+}
+
+/* ---------------------------
+   Onboarding e módulos ativos
+   --------------------------- */
+.onboarding-container {
+  max-width: 720px;
+  width: min(720px, 100%);
+}
+
+.onboarding-card {
+  text-align: left;
+  max-height: none;
+}
+
+.onboarding-card h2,
+.onboarding-card h3 {
+  text-align: left;
+}
+
+.onboarding-card h3 {
+  margin-top: 1.5rem;
+}
+
+.onboarding-segmento {
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.onboarding-aviso {
+  text-align: left;
+}
+
+.modulos-opcoes {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.modulo-opcao {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.75rem;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  cursor: pointer;
+}
+
+.modulo-opcao:has(input:checked) {
+  border-color: var(--cor-primaria);
+  background: var(--fundo-suave);
+}
+
+.modulo-conteudo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.modulo-conteudo strong {
+  font-size: 0.9rem;
+}
+
+.modulo-conteudo small {
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+}
+
+.modulo-selo {
+  align-self: flex-start;
+  font-style: normal;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+}
+
+.modulo-selo-operacional {
+  color: var(--cor-sucesso);
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.modulo-selo-vitrine {
+  color: var(--cor-primaria);
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.modulo-selo-em-breve {
+  color: var(--cor-aviso);
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.config-modulos {
+  border: 0;
+  padding: 0;
+  margin: 1rem 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.config-modulos legend {
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0;
+}
+
+.config-aviso {
+  margin: 0 0 0.25rem;
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+}
+
+.config-modulo-opcao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.modulos-vazios {
+  color: var(--texto-suave);
+  font-size: 0.85rem;
 }
