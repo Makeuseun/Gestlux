@@ -265,6 +265,22 @@
     };
   }
 
+  // Produto criado com estoque inicial é uma entrada real de mercadoria.
+  // Se a quantidade for zero, não há movimentação para registrar.
+  function entradaInicial(dados) {
+    const quantidade = Math.round(Number(dados.quantidade) || 0);
+    if (quantidade <= 0) return null;
+    const nota = String(dados.nota_fiscal || '').trim().slice(0, 180);
+    return {
+      tipo: 'entrada',
+      quantidade: quantidade,
+      valor: 0,
+      fornecedor: String(dados.fornecedor_padrao || '').trim().slice(0, 120) || null,
+      data_validade: dados.data_validade || null,
+      observacao: nota ? 'NF: ' + nota : null
+    };
+  }
+
   async function adicionarProduto(dados) {
     if (modo === 'remoto') {
       const user = await usuario();
@@ -282,6 +298,16 @@
         fornecedor_padrao: dados.fornecedor_padrao || null
       }]).select().single();
       if (error) throw traduzirErroProduto(error);
+
+      const entrada = entradaInicial(dados);
+      if (entrada) {
+        const movimentacao = await cliente.from('movimentacoes').insert([Object.assign({
+          organizacao_id: user.organizacao_id,
+          produto_id: data.id,
+          produto_nome: data.nome
+        }, entrada)]);
+        if (movimentacao.error) throw movimentacao.error;
+      }
       return data;
     }
     const produto = {
@@ -298,6 +324,16 @@
       fornecedor_padrao: dados.fornecedor_padrao || null
     };
     db().produtos.push(produto);
+
+    const entrada = entradaInicial(dados);
+    if (entrada) {
+      db().movimentacoes.push(Object.assign({
+        id: uid(),
+        produto_id: produto.id,
+        produto_nome: produto.nome,
+        criado_em: new Date().toISOString()
+      }, entrada));
+    }
     salvarDb();
     return produto;
   }

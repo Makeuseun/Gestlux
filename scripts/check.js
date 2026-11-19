@@ -198,6 +198,9 @@ for (const trecho of ['fornecedor: fornecedor', 'lote: lote', 'data_validade: va
 if (!/listarFornecedores/.test(backend) || !/carregarFornecedores/.test(dashboard)) {
   falhar('sugestão de fornecedores não foi implementada');
 }
+if (!/entradaInicial/.test(backend)) {
+  falhar('cadastro com estoque inicial não gera movimentação de entrada');
+}
 for (const trecho of [
   'novo-codigo', 'novo-fornecedor', 'modal-codigo', 'modal-fornecedor',
   'entrada-fornecedor', 'entrada-lote', 'entrada-validade', 'lista-fornecedores'
