@@ -274,7 +274,10 @@
         sku: dados.sku || null,
         preco: Number(dados.preco) || 0,
         quantidade: Number(dados.quantidade) || 0,
-        minimo: Number(dados.minimo) || 0
+        minimo: Number(dados.minimo) || 0,
+        tipo_produto: dados.tipo_produto || null,
+        data_validade: dados.data_validade || null,
+        nota_fiscal: dados.nota_fiscal || null
       }]).select().single();
       if (error) throw traduzirErroProduto(error);
       return data;
@@ -285,7 +288,10 @@
       sku: dados.sku || '',
       preco: Number(dados.preco) || 0,
       quantidade: Number(dados.quantidade) || 0,
-      minimo: Number(dados.minimo) || 0
+      minimo: Number(dados.minimo) || 0,
+      tipo_produto: dados.tipo_produto || null,
+      data_validade: dados.data_validade || null,
+      nota_fiscal: dados.nota_fiscal || null
     };
     db().produtos.push(produto);
     salvarDb();
@@ -314,7 +320,10 @@
         sku: dados.sku || null,
         preco: Number(dados.preco) || 0,
         quantidade: novaQuantidade,
-        minimo: Number(dados.minimo) || 0
+        minimo: Number(dados.minimo) || 0,
+        tipo_produto: dados.tipo_produto || null,
+        data_validade: dados.data_validade || null,
+        nota_fiscal: dados.nota_fiscal || null
       }).eq('id', id);
       if (error) throw traduzirErroProduto(error);
 
@@ -343,6 +352,9 @@
     produto.preco = Number(dados.preco) || 0;
     produto.quantidade = novaQuantidade;
     produto.minimo = Number(dados.minimo) || 0;
+    produto.tipo_produto = dados.tipo_produto || null;
+    produto.data_validade = dados.data_validade || null;
+    produto.nota_fiscal = dados.nota_fiscal || null;
 
     if (delta !== 0) {
       atual.movimentacoes.push({

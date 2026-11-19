@@ -35,6 +35,9 @@ create table if not exists public.produtos (
   preco numeric(12, 2) not null default 0,
   quantidade integer not null default 0,
   minimo integer not null default 0,
+  tipo_produto text,
+  data_validade date,
+  nota_fiscal text,
   criado_em timestamptz not null default now()
 );
 
@@ -102,6 +105,10 @@ where coalesce(array_length(modulos, 1), 0) = 0;
 -- Assim, produto com estoque zerado pode ser excluído sem
 -- apagar as vendas registradas. Seguro para rodar de novo.
 -- -----------------------------------------------------
+alter table public.produtos add column if not exists tipo_produto text;
+alter table public.produtos add column if not exists data_validade date;
+alter table public.produtos add column if not exists nota_fiscal text;
+
 alter table public.movimentacoes add column if not exists produto_nome text;
 alter table public.movimentacoes add column if not exists observacao text;
 alter table public.movimentacoes add column if not exists vendedor_id uuid;
@@ -284,9 +291,10 @@ begin
   if coalesce(p_papel, '') not in ('admin', 'gerente', 'operador') then
     raise exception 'Papel inválido.';
   end if;
-  -- Gerente pode convidar, mas não pode criar outro administrador.
-  if v_papel_admin = 'gerente' and p_papel = 'admin' then
-    raise exception 'Somente administradores podem convidar administradores.';
+  -- Gerente pode convidar apenas operadores; papéis de gestão
+  -- só são definidos por administradores.
+  if v_papel_admin = 'gerente' and p_papel <> 'operador' then
+    raise exception 'Gerentes podem convidar apenas operadores.';
   end if;
 
   -- gen_random_uuid() é nativo; evita depender da extensão pgcrypto no search_path.

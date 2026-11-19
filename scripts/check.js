@@ -161,6 +161,28 @@ if (!/Vendas por pessoa/.test(dashboard) || !/filtro-vendedor/.test(dashboard) |
 if (/gen_random_bytes/.test(schema)) {
   falhar('schema.sql usa gen_random_bytes (pgcrypto pode não estar no search_path)');
 }
+if (!/Gerentes podem convidar apenas operadores/.test(schema) || !/\['operador'\]/.test(dashboard)) {
+  falhar('gerente ainda pode convidar gerentes/admin');
+}
+
+// 9. Cadastro de produto: step de 5 centavos, modal, tipo/validade/NFe e filtros
+const dashboardHtml = fs.readFileSync(path.join(raiz, 'dashboard.html'), 'utf8');
+for (const trecho of ['tipo_produto', 'data_validade', 'nota_fiscal']) {
+  if (!schema.includes(trecho)) falhar('schema.sql não contém coluna de produto: ' + trecho);
+  if (!backend.includes(trecho)) falhar('backend.js não persiste coluna de produto: ' + trecho);
+}
+if (!/step="0\.05"/.test(dashboardHtml) || /step="0\.01"/.test(dashboardHtml) || /step="0\.01"/.test(dashboard)) {
+  falhar('step de preço não foi ajustado para 0,05');
+}
+if (!/novo-produto-form/.test(dashboardHtml) || !/btn-novo-produto/.test(dashboard)) {
+  falhar('cadastro de produto não foi movido para janela (modal)');
+}
+for (const trecho of ['filtro-tipo-produto', 'filtro-tipo-mov', 'validade-vencida']) {
+  if (!dashboard.includes(trecho)) falhar('dashboard.js não contém: ' + trecho);
+}
+if (!/validade-vencida/.test(css)) {
+  falhar('CSS não estiliza validade vencida');
+}
 if (erros.length) {
   console.error('Falhas de verificação:');
   for (const e of erros) console.error(' - ' + e);

@@ -132,6 +132,40 @@
     </main>
   </div>
 
+  <div class="modal" id="modal-novo-produto" hidden role="dialog" aria-modal="true" aria-labelledby="modal-novo-titulo">
+    <div class="modal-caixa">
+      <h3 id="modal-novo-titulo">Novo produto</h3>
+      <form id="novo-produto-form" class="config-form">
+        <div class="form-group"><label for="novo-nome">Nome do produto</label>
+          <input id="novo-nome" required placeholder="Ex: Camiseta Básica" /></div>
+        <div class="form-group"><label for="novo-sku">SKU</label>
+          <input id="novo-sku" placeholder="Ex: CAM-001" /></div>
+        <div class="form-group"><label for="novo-preco">Preço (R$)</label>
+          <input id="novo-preco" type="number" min="0" step="0.05" required placeholder="Ex: 79,90" />
+          <small class="campo-ajuda">Ajustes de R$ 0,05.</small></div>
+        <div class="form-group"><label for="novo-qtd">Quantidade</label>
+          <input id="novo-qtd" type="number" min="0" step="1" required placeholder="Ex: 120" /></div>
+        <div class="form-group"><label for="novo-min">Estoque mínimo</label>
+          <input id="novo-min" type="number" min="0" step="1" placeholder="Ex: 20" /></div>
+        <div class="form-group"><label for="novo-tipo">Tipo do produto</label>
+          <select id="novo-tipo">
+            <option value="">Não informado</option>
+            <option value="alimentos">Alimentos</option>
+            <option value="vestuario">Vestuário</option>
+            <option value="outros">Outros</option>
+          </select></div>
+        <div class="form-group"><label for="novo-validade">Data de validade (opcional)</label>
+          <input id="novo-validade" type="date" /></div>
+        <div class="form-group"><label for="novo-nota">Nota fiscal (opcional)</label>
+          <input id="novo-nota" type="text" maxlength="120" placeholder="Ex: NF-e 12345" /></div>
+        <div class="modal-acoes">
+          <button type="button" class="btn btn-outline" id="novo-cancelar">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Adicionar produto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal" id="modal-produto" hidden role="dialog" aria-modal="true" aria-labelledby="modal-produto-titulo">
     <div class="modal-caixa">
       <h3 id="modal-produto-titulo">Editar produto</h3>
@@ -142,11 +176,23 @@
         <div class="form-group"><label for="modal-sku">SKU</label>
           <input id="modal-sku" placeholder="Ex: CAM-001" /></div>
         <div class="form-group"><label for="modal-preco">Preço (R$)</label>
-          <input id="modal-preco" type="number" min="0" step="0.01" required value="0" /></div>
+          <input id="modal-preco" type="number" min="0" step="0.05" required value="0" />
+          <small class="campo-ajuda">Ajustes de R$ 0,05.</small></div>
         <div class="form-group"><label for="modal-qtd">Quantidade</label>
           <input id="modal-qtd" type="number" min="0" step="1" required value="0" /></div>
         <div class="form-group"><label for="modal-min">Estoque mínimo</label>
           <input id="modal-min" type="number" min="0" step="1" value="0" /></div>
+        <div class="form-group"><label for="modal-tipo">Tipo do produto</label>
+          <select id="modal-tipo">
+            <option value="">Não informado</option>
+            <option value="alimentos">Alimentos</option>
+            <option value="vestuario">Vestuário</option>
+            <option value="outros">Outros</option>
+          </select></div>
+        <div class="form-group"><label for="modal-validade">Data de validade (opcional)</label>
+          <input id="modal-validade" type="date" /></div>
+        <div class="form-group"><label for="modal-nota">Nota fiscal (opcional)</label>
+          <input id="modal-nota" type="text" maxlength="120" placeholder="Ex: NF-e 12345" /></div>
         <div class="modal-acoes">
           <button type="button" class="btn btn-outline" id="modal-cancelar">Cancelar</button>
           <button type="submit" class="btn btn-primary">Salvar alterações</button>
