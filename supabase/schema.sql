@@ -289,7 +289,8 @@ begin
     raise exception 'Somente administradores podem convidar administradores.';
   end if;
 
-  v_token := encode(gen_random_bytes(16), 'hex');
+  -- gen_random_uuid() é nativo; evita depender da extensão pgcrypto no search_path.
+  v_token := md5(gen_random_uuid()::text || clock_timestamp()::text || lower(trim(p_email)));
   insert into public.convites (organizacao_id, email, nome, papel, token)
   values (v_org, lower(trim(p_email)), trim(coalesce(p_nome, '')), p_papel, v_token);
 

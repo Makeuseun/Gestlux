@@ -158,6 +158,9 @@ if (!/convite-aviso/.test(cadastroHtml) || !/grupo-segmento/.test(cadastroHtml))
 if (!/Vendas por pessoa/.test(dashboard) || !/filtro-vendedor/.test(dashboard) || !/Turnos e ponto/.test(dashboard)) {
   falhar('dashboard.js não implementa relatório por pessoa ou bloco "em breve"');
 }
+if (/gen_random_bytes/.test(schema)) {
+  falhar('schema.sql usa gen_random_bytes (pgcrypto pode não estar no search_path)');
+}
 if (erros.length) {
   console.error('Falhas de verificação:');
   for (const e of erros) console.error(' - ' + e);
