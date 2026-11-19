@@ -2246,3 +2246,152 @@ img {
   color: var(--texto-suave);
   font-size: 0.85rem;
 }
+
+/* ---------------------------
+   Pessoas, convites e vendedores
+   --------------------------- */
+.pessoas-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 1.25rem;
+  padding: 1.5rem 2rem 0;
+}
+
+.pessoas-grid .card-body,
+.convites-card .card-body,
+.em-breve-card .card-body,
+.vendas-pessoa-card .card-body {
+  background: var(--fundo-card);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 1rem;
+}
+
+.convites-card,
+.em-breve-card,
+.vendas-pessoa-card {
+  margin: 1.25rem 2rem 0;
+}
+
+.texto-suave {
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.status-info {
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--cor-primaria);
+}
+
+.papel-fixo {
+  font-size: 0.85rem;
+}
+
+.paper-select,
+.form-convite select,
+.convite-link input,
+.relatorio-filtros select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--fundo-card);
+  color: var(--texto);
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.paper-select {
+  min-width: 150px;
+}
+
+.form-convite {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.form-convite label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+}
+
+.form-convite input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--fundo-card);
+  color: var(--texto);
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.convite-link {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  min-width: 320px;
+}
+
+.convite-link input {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.75rem;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--cor-erro);
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--raio);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.btn-ghost:hover {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.etapa-em-breve {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  color: var(--cor-aviso);
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.vendas-pessoa-card .data-table td:last-child,
+.vendas-pessoa-card .data-table th:last-child {
+  text-align: right;
+}
+
+.convite-aviso {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  border-radius: var(--raio);
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--texto);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .pessoas-grid {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+
+  .convites-card,
+  .em-breve-card,
+  .vendas-pessoa-card {
+    margin: 1rem;
+  }
+}

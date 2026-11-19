@@ -14,6 +14,7 @@
   let buscaEstoque = '';
   let filtroInicio = '';
   let filtroFim = '';
+  let filtroVendedor = '';
 
   function esc(valor) {
     return String(valor == null ? '' : valor).replace(/[&<>"']/g, function (c) {
@@ -509,7 +510,7 @@
 
         try {
           if (!B) throw new Error('Backend indisponível.');
-          await B.registrarVenda(botao.getAttribute('data-id'), quantidade);
+          await B.registrarVenda(botao.getAttribute('data-id'), quantidade, usuarioAtual);
           toast(substituir("Venda registrada: {q} unidade(s) de {n}.", { q: quantidade, n: botao.getAttribute('data-nome') }));
           await recarregarEAtualizar();
         } catch (erro) {
@@ -722,17 +723,56 @@
     });
   }
 
+  function nomeVendedor(m) {
+    if (m && m.vendedor_nome) return String(m.vendedor_nome);
+    return 'Sem vendedor';
+  }
+
+  function vendedoresDisponiveis() {
+    const nomes = [];
+    dados.movimentacoes.forEach(function (m) {
+      const nome = nomeVendedor(m);
+      if (nomes.indexOf(nome) === -1) nomes.push(nome);
+    });
+    return nomes.sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
+  }
+
   function movimentacoesFiltradas() {
     const ini = filtroInicio ? new Date(filtroInicio).getTime() : -Infinity;
     const fim = filtroFim ? new Date(filtroFim).getTime() : Infinity;
     return dados.movimentacoes.filter(function (m) {
       const t = new Date(m.criado_em).getTime();
-      return t >= ini && t <= fim;
+      return t >= ini && t <= fim && (!filtroVendedor || nomeVendedor(m) === filtroVendedor);
     });
   }
 
+  function vendasPorPessoaHTML() {
+    const vendas = movimentacoesFiltradas().filter(function (m) { return m.tipo === 'venda'; });
+    const grupos = {};
+    vendas.forEach(function (m) {
+      const nome = nomeVendedor(m);
+      if (!grupos[nome]) grupos[nome] = { quantidade: 0, total: 0, vendas: 0 };
+      grupos[nome].quantidade += numero(m.quantidade);
+      grupos[nome].total += numero(m.valor);
+      grupos[nome].vendas += 1;
+    });
+
+    const nomes = Object.keys(grupos).sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
+    if (!nomes.length) {
+      return '<tr><td colspan="3" class="tabela-vazia">' + esc('Nenhuma venda no período.') + '</td></tr>';
+    }
+    return nomes.map(function (nome) {
+      const g = grupos[nome];
+      return '<tr>' +
+        '<td>' + esc(nome) + '</td>' +
+        '<td>' + g.vendas + '</td>' +
+        '<td>' + esc(dinheiro(g.total)) + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
   function exportarCSV() {
-    const linhas = [["Data e hora", "Produto", "Tipo", "Qtd", "Valor", "Observação"]];
+    const linhas = [["Data e hora", "Produto", "Tipo", "Qtd", "Valor", "Vendedor", "Observação"]];
 
     movimentacoesFiltradas().forEach(function (m) {
       linhas.push([
@@ -741,6 +781,7 @@
         m.tipo,
         numero(m.quantidade),
         numero(m.valor).toFixed(2),
+        nomeVendedor(m),
         m.observacao || ''
       ]);
     });
@@ -759,7 +800,7 @@
     link.click();
     document.body.removeChild(link);
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-    toast("Arquivo CSV exportado com o filtro do período.");
+    toast("Arquivo CSV exportado com os filtros aplicados.");
   }
 
   function relatorioResumoHTML() {
@@ -775,7 +816,7 @@
   function relatorioCorpoHTML() {
     const movs = movimentacoesFiltradas().slice(0, 50);
     if (!movs.length) {
-      return '<tr><td colspan="6" class="tabela-vazia">' + esc("Nenhum registro no período.") + '</td></tr>';
+      return '<tr><td colspan="7" class="tabela-vazia">' + esc("Nenhum registro no período.") + '</td></tr>';
     }
 
     const rotulos = { venda: "Venda", entrada: "Entrada", saida: "Saída" };
@@ -786,6 +827,7 @@
         '<td>' + esc(rotulos[m.tipo] || m.tipo) + '</td>' +
         '<td>' + numero(m.quantidade) + '</td>' +
         '<td>' + esc(dinheiro(m.valor)) + '</td>' +
+        '<td>' + esc(nomeVendedor(m)) + '</td>' +
         '<td>' + esc(m.observacao || '—') + '</td>' +
         '</tr>';
     }).join('');
@@ -794,18 +836,36 @@
   function atualizarRelatorio() {
     const resumo = document.getElementById('relatorio-resumo');
     const corpo = document.getElementById('relatorio-corpo');
+    const pessoas = document.getElementById('vendas-por-pessoa-corpo');
     if (resumo) resumo.innerHTML = relatorioResumoHTML();
     if (corpo) corpo.innerHTML = relatorioCorpoHTML();
+    if (pessoas) pessoas.innerHTML = vendasPorPessoaHTML();
   }
 
   function renderRelatorios(painel) {
+    const vendedores = vendedoresDisponiveis();
     painel.innerHTML =
       '<div class="relatorio-filtros">' +
       '<label>' + esc("De") + ' <input type="datetime-local" id="filtro-inicio" value="' + esc(filtroInicio) + '" aria-label="' + esc("Início do período") + '" /></label>' +
       '<label>' + esc("Até") + ' <input type="datetime-local" id="filtro-fim" value="' + esc(filtroFim) + '" aria-label="' + esc("Fim do período") + '" /></label>' +
+      '<label>' + esc("Vendedor") + ' <select id="filtro-vendedor" aria-label="' + esc("Filtrar por vendedor") + '">' +
+      '<option value="">' + esc('Todos') + '</option>' +
+      vendedores.map(function (nome) {
+        return '<option value="' + esc(nome) + '"' + (nome === filtroVendedor ? ' selected' : '') + '>' + esc(nome) + '</option>';
+      }).join('') +
+      '</select></label>' +
       '<button type="button" class="btn btn-outline btn-sm" id="filtro-limpar">' + esc("Limpar") + '</button>' +
       '</div>' +
       '<div class="resumo-cards" id="relatorio-resumo">' + relatorioResumoHTML() + '</div>' +
+      '<section class="card vendas-pessoa-card">' +
+      '<div class="card-header"><h3>' + esc('Vendas por pessoa') + '</h3></div>' +
+      '<div class="card-body table-responsive">' +
+      '<table class="data-table"><thead><tr>' +
+      '<th>' + esc('Vendedor') + '</th>' +
+      '<th>' + esc('Vendas') + '</th>' +
+      '<th>' + esc('Total') + '</th>' +
+      '</tr></thead><tbody id="vendas-por-pessoa-corpo">' + vendasPorPessoaHTML() + '</tbody></table>' +
+      '</div></section>' +
       '<div class="card-header relatorio-header">' +
       '<h3>' + esc("Movimentações no período") + '</h3>' +
       '<button type="button" class="btn btn-outline btn-sm" id="btn-exportar">' + esc("Exportar CSV") + '</button>' +
@@ -817,15 +877,17 @@
       '<th>' + esc("Tipo") + '</th>' +
       '<th>' + esc("Qtd") + '</th>' +
       '<th>' + esc("Valor") + '</th>' +
+      '<th>' + esc("Vendedor") + '</th>' +
       '<th>' + esc("Observação") + '</th>' +
       '</tr></thead><tbody id="relatorio-corpo">' + relatorioCorpoHTML() + '</tbody></table></div>';
 
-    ['filtro-inicio', 'filtro-fim'].forEach(function (id) {
+    ['filtro-inicio', 'filtro-fim', 'filtro-vendedor'].forEach(function (id) {
       const campo = document.getElementById(id);
       if (campo) {
         campo.addEventListener('change', function () {
           filtroInicio = document.getElementById('filtro-inicio').value;
           filtroFim = document.getElementById('filtro-fim').value;
+          filtroVendedor = document.getElementById('filtro-vendedor').value;
           atualizarRelatorio();
         });
       }
@@ -836,8 +898,10 @@
       limpar.addEventListener('click', function () {
         filtroInicio = '';
         filtroFim = '';
+        filtroVendedor = '';
         document.getElementById('filtro-inicio').value = '';
         document.getElementById('filtro-fim').value = '';
+        document.getElementById('filtro-vendedor').value = '';
         atualizarRelatorio();
       });
     }
@@ -846,33 +910,211 @@
     if (botao) botao.addEventListener('click', exportarCSV);
   }
 
+  const rotuloPapel = {
+    admin: 'Administrador',
+    gerente: 'Gerente',
+    operador: 'Operador'
+  };
+
+  function nomePapel(papel) {
+    return rotuloPapel[papel] || 'Operador';
+  }
+
+  function linkConvite(token) {
+    const url = new URL('cadastro.html', window.location.href);
+    url.searchParams.set('convite', token);
+    return url.toString();
+  }
+
+  async function copiarTexto(texto) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(texto);
+        return true;
+      }
+    } catch (e) {
+      // fallback abaixo
+    }
+    const campo = document.createElement('textarea');
+    campo.value = texto;
+    campo.style.position = 'fixed';
+    campo.style.opacity = '0';
+    document.body.appendChild(campo);
+    campo.select();
+    let copiado = false;
+    try {
+      copiado = document.execCommand('copy');
+    } catch (e) {
+      copiado = false;
+    }
+    document.body.removeChild(campo);
+    return copiado;
+  }
+
   async function renderUsuarios(painel) {
     let pessoas = [];
+    let convites = [];
     try {
-      pessoas = B ? await B.listarUsuarios() : [];
+      if (B) pessoas = await B.listarUsuarios();
     } catch (e) {
       pessoas = [];
     }
+    try {
+      if (B) convites = await B.listarConvites();
+    } catch (e) {
+      convites = [];
+    }
+
+    const souAdmin = !!(usuarioAtual && usuarioAtual.papel === 'admin');
+    const meuId = usuarioAtual && usuarioAtual.id;
+    const papeisConvite = souAdmin ? Object.keys(rotuloPapel) : ['gerente', 'operador'];
 
     const corpo = pessoas.length
       ? pessoas.map(function (p) {
+        const podeEditar = souAdmin && p.id && p.id !== meuId;
+        const seletor = podeEditar
+          ? '<select class="paper-select" data-papel-usuario="' + esc(p.id) + '" aria-label="Papel de ' + esc(p.nome) + '">' +
+            Object.keys(rotuloPapel).map(function (chave) {
+              return '<option value="' + chave + '"' + (chave === (p.papel || 'operador') ? ' selected' : '') + '>' +
+                esc(rotuloPapel[chave]) + '</option>';
+            }).join('') +
+            '</select>'
+          : '<span class="papel-fixo">' + esc(nomePapel(p.papel)) + '</span>';
         return '<tr>' +
-          '<td>' + esc(p.nome) + '</td>' +
-          '<td>' + esc(p.email) + '</td>' +
-          '<td>' + esc(({ admin: "Administrador", gerente: "Gerente", operador: "Operador" }[p.papel || 'operador'] || 'Operador')) + '</td>' +
-          '<td><span class="status status-success">' + esc("Ativo") + '</span></td>' +
+          '<td>' + esc(p.nome || '—') + (p.id === meuId ? ' <span class="status status-info">você</span>' : '') + '</td>' +
+          '<td>' + esc(p.email || '—') + '</td>' +
+          '<td>' + seletor + '</td>' +
+          '<td><span class="status status-success">' + esc('Ativo') + '</span></td>' +
           '</tr>';
       }).join('')
-      : '<tr><td colspan="4" class="tabela-vazia">' + esc("Nenhum registro ainda.") + '</td></tr>';
+      : '<tr><td colspan="4" class="tabela-vazia">' + esc('Nenhuma pessoa cadastrada ainda.') + '</td></tr>';
+
+    const pendentes = convites.filter(function (c) { return c.status === 'pendente'; });
+    const corpoConvites = pendentes.length
+      ? pendentes.map(function (c) {
+        const link = linkConvite(c.token);
+        return '<tr>' +
+          '<td>' + esc(c.nome || '—') + '</td>' +
+          '<td>' + esc(c.email) + '</td>' +
+          '<td>' + esc(nomePapel(c.papel)) + '</td>' +
+          '<td><div class="convite-link">' +
+          '<input type="text" readonly value="' + esc(link) + '" aria-label="Link do convite" />' +
+          '<button type="button" class="btn btn-outline btn-sm" data-copiar="' + esc(link) + '">' + esc('Copiar') + '</button>' +
+          '</div></td>' +
+          '<td><button type="button" class="btn btn-ghost btn-sm" data-cancelar="' + esc(c.token) + '">' + esc('Cancelar') + '</button></td>' +
+          '</tr>';
+      }).join('')
+      : '<tr><td colspan="5" class="tabela-vazia">' + esc('Nenhum convite pendente.') + '</td></tr>';
 
     painel.innerHTML =
+      '<div class="pessoas-grid">' +
+      '<section class="card">' +
+      '<div class="card-header"><h3>' + esc('Pessoas com acesso') + '</h3></div>' +
       '<div class="card-body table-responsive">' +
       '<table class="data-table"><thead><tr>' +
-      '<th>' + esc("Usuário") + '</th>' +
-      '<th>' + esc("E-mail") + '</th>' +
-      '<th>' + esc("Segmento de atuação") + '</th>' +
-      '<th>' + esc("Status") + '</th>' +
-      '</tr></thead><tbody>' + corpo + '</tbody></table></div>';
+      '<th>' + esc('Usuário') + '</th>' +
+      '<th>' + esc('E-mail') + '</th>' +
+      '<th>' + esc('Papel') + '</th>' +
+      '<th>' + esc('Status') + '</th>' +
+      '</tr></thead><tbody>' + corpo + '</tbody></table>' +
+      '</div></section>' +
+      '<section class="card">' +
+      '<div class="card-header"><h3>' + esc('Convidar por link') + '</h3></div>' +
+      '<div class="card-body">' +
+      '<p class="texto-suave">' + esc('Gere um link, copie e envie para a pessoa. Nenhum e-mail é enviado automaticamente pelo Gestlux.') + '</p>' +
+      '<form id="form-convite" class="form-convite">' +
+      '<label>' + esc('Nome') + ' <input type="text" id="convite-nome" placeholder="Nome da pessoa" autocomplete="off" /></label>' +
+      '<label>' + esc('E-mail') + ' <input type="email" id="convite-email" placeholder="pessoa@empresa.com.br" required /></label>' +
+      '<label>' + esc('Papel') + ' <select id="convite-papel">' +
+      papeisConvite.map(function (chave) {
+        return '<option value="' + chave + '"' + (chave === 'operador' ? ' selected' : '') + '>' + esc(rotuloPapel[chave]) + '</option>';
+      }).join('') +
+      '</select></label>' +
+      '<button type="submit" class="btn btn-primary btn-sm">' + esc('Gerar link') + '</button>' +
+      '</form>' +
+      '</div></section>' +
+      '</div>' +
+      '<section class="card convites-card">' +
+      '<div class="card-header"><h3>' + esc('Convites pendentes') + '</h3></div>' +
+      '<div class="card-body table-responsive">' +
+      '<table class="data-table"><thead><tr>' +
+      '<th>' + esc('Nome') + '</th>' +
+      '<th>' + esc('E-mail') + '</th>' +
+      '<th>' + esc('Papel') + '</th>' +
+      '<th>' + esc('Link') + '</th>' +
+      '<th>' + esc('Ação') + '</th>' +
+      '</tr></thead><tbody>' + corpoConvites + '</tbody></table>' +
+      '</div></section>' +
+      '<section class="card em-breve-card">' +
+      '<div class="card-header"><h3>' + esc('Turnos e ponto') + ' <span class="etapa-em-breve">' + esc('em breve') + '</span></h3></div>' +
+      '<div class="card-body"><p class="texto-suave">' + esc('Escala, registro de ponto e banco de horas ainda não estão disponíveis nesta versão.') + '</p></div>' +
+      '</section>';
+
+    const form = document.getElementById('form-convite');
+    if (form) {
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        if (!form.checkValidity()) {
+          form.reportValidity();
+          return;
+        }
+        const btn = form.querySelector('button[type="submit"]');
+        const texto = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Gerando...';
+        try {
+          const token = await B.criarConvite(
+            document.getElementById('convite-email').value,
+            document.getElementById('convite-nome').value,
+            document.getElementById('convite-papel').value
+          );
+          toast('Link gerado. Copie e envie manualmente.', 'sucesso');
+          await renderUsuarios(painel);
+          const copiado = await copiarTexto(linkConvite(token));
+          if (copiado) toast('Link copiado.', 'sucesso');
+        } catch (erro) {
+          toast((erro && erro.message) || 'Não foi possível gerar o convite.', 'erro');
+          btn.disabled = false;
+          btn.textContent = texto;
+        }
+      });
+    }
+
+    painel.querySelectorAll('[data-copiar]').forEach(function (botao) {
+      botao.addEventListener('click', async function () {
+        const copiado = await copiarTexto(botao.getAttribute('data-copiar'));
+        toast(copiado ? 'Link copiado.' : 'Copie o link manualmente.', copiado ? 'sucesso' : 'erro');
+      });
+    });
+
+    painel.querySelectorAll('[data-cancelar]').forEach(function (botao) {
+      botao.addEventListener('click', async function () {
+        botao.disabled = true;
+        try {
+          await B.cancelarConvite(botao.getAttribute('data-cancelar'));
+          toast('Convite cancelado.', 'sucesso');
+          await renderUsuarios(painel);
+        } catch (erro) {
+          toast((erro && erro.message) || 'Não foi possível cancelar.', 'erro');
+          botao.disabled = false;
+        }
+      });
+    });
+
+    painel.querySelectorAll('[data-papel-usuario]').forEach(function (select) {
+      select.addEventListener('change', async function () {
+        const papel = select.value;
+        select.disabled = true;
+        try {
+          await B.atualizarPapel(select.getAttribute('data-papel-usuario'), papel);
+          toast('Papel atualizado.', 'sucesso');
+          await renderUsuarios(painel);
+        } catch (erro) {
+          toast((erro && erro.message) || 'Não foi possível alterar o papel.', 'erro');
+          await renderUsuarios(painel);
+        }
+      });
+    });
   }
 
   async function renderConfiguracoes(painel) {
@@ -990,7 +1232,7 @@
     inventory: { title: "Estoque", subtitle: "Produtos, níveis mínimos e vendas persistidas.", render: renderEstoque },
     modules: { title: "Módulos disponíveis", subtitle: "Ative apenas o que faz sentido para a sua operação.", render: renderModulos },
     reports: { title: "Relatórios", subtitle: "Movimentações reais do banco, com exportação em CSV.", render: renderRelatorios },
-    users: { title: "Usuários", subtitle: "Pessoas com acesso à sua organização.", render: renderUsuarios },
+    users: { title: "Pessoas", subtitle: "Convites, papéis e acesso à sua organização.", render: renderUsuarios },
     settings: { title: "Configurações", subtitle: "Preferências persistidas da sua organização.", render: renderConfiguracoes }
   };
 

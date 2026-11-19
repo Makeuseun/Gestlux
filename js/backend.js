@@ -51,7 +51,8 @@
 
     return {
       organizacao: { id: 'local-org', nome: 'Loja Central (exemplo)', segmento: 'varejo', notificacoes: true, respostas: {}, modulos: ['7', '8'] },
-      usuarios: [{ nome: 'Usuário Demo', email: 'demo@gestlux.com.br', papel: 'admin' }],
+      usuarios: [{ id: 'local-user', nome: 'Usuário Demo', email: 'demo@gestlux.com.br', papel: 'admin' }],
+      convites: [],
       produtos: produtos,
       movimentacoes: movimentacoes
     };
@@ -80,9 +81,10 @@
       salvo = null;
     }
     return {
+      id: (salvo && salvo.id) || 'local-user',
       nome: (salvo && salvo.nome) || 'Usuário Demo',
       email: (salvo && salvo.email) || 'demo@gestlux.com.br',
-      papel: 'admin',
+      papel: (salvo && salvo.papel) || 'admin',
       organizacao_id: db().organizacao.id,
       organizacao: db().organizacao
     };
@@ -126,33 +128,57 @@
     return usuarioLocal();
   }
 
-  async function cadastro(nome, email, senha, segmento) {
+  async function cadastro(nome, email, senha, segmento, tokenConvite) {
     if (modo === 'remoto') {
       const { data, error } = await cliente.auth.signUp({
         email: email,
         password: senha,
-        options: { data: { nome: nome, segmento: segmento } }
+        options: { data: { nome: nome, segmento: segmento || 'varejo' } }
       });
       if (error) throw error;
       if (!data.session) {
         throw new Error('Confirme o e-mail ou desative a confirmação no Supabase para a demo.');
       }
-      await cliente.rpc('criar_organizacao', {
-        p_nome: nome,
-        p_segmento: segmento,
-        p_nome_usuario: nome,
-        p_email_usuario: email
-      });
+
+      if (tokenConvite) {
+        const convite = await cliente.rpc('aceitar_convite', {
+          p_token: tokenConvite,
+          p_nome_usuario: nome,
+          p_email_usuario: email
+        });
+        if (convite.error) throw convite.error;
+      } else {
+        const criacao = await cliente.rpc('criar_organizacao', {
+          p_nome: nome,
+          p_segmento: segmento,
+          p_nome_usuario: nome,
+          p_email_usuario: email
+        });
+        if (criacao.error) throw criacao.error;
+      }
       return await usuario() || { nome: nome, email: email };
     }
 
+    const convite = tokenConvite ? localConviteValido(tokenConvite) : null;
+    const papel = convite ? convite.papel : 'admin';
     localStorage.setItem('gestlux_token', 'demo-token-' + Date.now());
-    localStorage.setItem('gestlux_user', JSON.stringify({ nome: nome, email: email, segmento: segmento }));
+    localStorage.setItem('gestlux_user', JSON.stringify({
+      id: uid(), nome: nome, email: email, segmento: segmento || 'varejo', papel: papel
+    }));
     const atual = db();
-    atual.organizacao.segmento = segmento;
-    atual.usuarios.push({ nome: nome, email: email, papel: 'admin' });
+    if (!convite) atual.organizacao.segmento = segmento;
+    atual.usuarios.push({ id: uid(), nome: nome, email: email, papel: papel });
+    if (convite) convite.status = 'aceito';
     salvarDb();
     return usuarioLocal();
+  }
+
+  function localConviteValido(token) {
+    const atual = db();
+    if (!atual.convites) atual.convites = [];
+    return atual.convites.find(function (c) {
+      return c.token === token && c.status === 'pendente';
+    }) || null;
   }
 
   // Preferências do onboarding (respostas + módulos ativos).
@@ -209,6 +235,7 @@
       }
 
       return {
+        id: user.id,
         nome: (perfil.data && perfil.data.nome) || user.email.split('@')[0],
         email: user.email,
         papel: (perfil.data && perfil.data.papel) || 'admin',
@@ -380,14 +407,20 @@
     return erro;
   }
 
-  async function registrarVenda(produtoId, quantidade) {
+  async function registrarVenda(produtoId, quantidade, vendedor) {
     const qtd = Number(quantidade);
     if (!qtd || qtd <= 0) throw new Error('Informe uma quantidade válida.');
 
+    const pessoa = vendedor || await usuario();
+    const vendedorId = pessoa && pessoa.id ? pessoa.id : null;
+    const vendedorNome = pessoa && pessoa.nome ? pessoa.nome : null;
+
     if (modo === 'remoto') {
-      const { error } = await cliente.rpc('registrar_venda', {
+      const { error } = await cliente.rpc('registrar_venda_com_pessoa', {
         p_produto_id: produtoId,
-        p_quantidade: qtd
+        p_quantidade: qtd,
+        p_vendedor_id: vendedorId,
+        p_vendedor_nome: vendedorNome
       });
       if (error) throw error;
       return;
@@ -405,6 +438,8 @@
       tipo: 'venda',
       quantidade: qtd,
       valor: produto.preco * qtd,
+      vendedor_id: vendedorId,
+      vendedor_nome: vendedorNome,
       criado_em: new Date().toISOString()
     });
     salvarDb();
@@ -485,12 +520,116 @@
     if (modo === 'remoto') {
       const user = await usuario();
       const { data, error } = await cliente.from('perfis')
-        .select('nome, email, papel, criado_em')
+        .select('id, nome, email, papel, criado_em')
         .eq('organizacao_id', user.organizacao_id);
       if (error) throw error;
       return data || [];
     }
     return db().usuarios.slice();
+  }
+
+  async function detalhesConvite(token) {
+    if (!token) throw new Error('Link de convite inválido.');
+    if (modo === 'remoto') {
+      const { data, error } = await cliente.rpc('detalhes_convite', { p_token: token });
+      if (error) throw error;
+      return (data && data[0]) || null;
+    }
+    const convite = localConviteValido(token);
+    if (!convite) return null;
+    return {
+      email: convite.email,
+      nome: convite.nome,
+      papel: convite.papel,
+      organizacao: db().organizacao.nome,
+      segmento: db().organizacao.segmento
+    };
+  }
+
+  async function criarConvite(email, nome, papel) {
+    const emailLimpo = String(email || '').trim().toLowerCase();
+    if (!emailLimpo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLimpo)) {
+      throw new Error('Informe um e-mail válido.');
+    }
+    if (!['admin', 'gerente', 'operador'].includes(papel)) throw new Error('Papel inválido.');
+
+    if (modo === 'remoto') {
+      const { data, error } = await cliente.rpc('criar_convite', {
+        p_email: emailLimpo,
+        p_nome: String(nome || '').trim(),
+        p_papel: papel
+      });
+      if (error) throw traduzirErroConvite(error);
+      return data;
+    }
+
+    const atual = db();
+    if (!atual.convites) atual.convites = [];
+    if (atual.convites.some(function (c) { return c.email === emailLimpo && c.status === 'pendente'; })) {
+      throw new Error('Já existe um convite pendente para este e-mail.');
+    }
+    const token = encodeURIComponent(uid().replace(/[^a-z0-9]/gi, '') + Math.random().toString(36).slice(2, 18));
+    atual.convites.push({
+      id: uid(),
+      email: emailLimpo,
+      nome: String(nome || '').trim(),
+      papel: papel,
+      token: token,
+      status: 'pendente',
+      criado_em: new Date().toISOString()
+    });
+    salvarDb();
+    return token;
+  }
+
+  async function listarConvites() {
+    if (modo === 'remoto') {
+      const { data, error } = await cliente.from('convites')
+        .select('id, email, nome, papel, token, status, criado_em')
+        .order('criado_em', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    }
+    const atual = db();
+    if (!atual.convites) atual.convites = [];
+    return atual.convites.slice();
+  }
+
+  async function cancelarConvite(token) {
+    if (!token) return;
+    if (modo === 'remoto') {
+      const { error } = await cliente.rpc('cancelar_convite', { p_token: token });
+      if (error) throw error;
+      return;
+    }
+    const atual = db();
+    const convite = (atual.convites || []).find(function (c) { return c.token === token; });
+    if (convite) convite.status = 'cancelado';
+    salvarDb();
+  }
+
+  async function atualizarPapel(usuarioId, papel) {
+    if (!['admin', 'gerente', 'operador'].includes(papel)) throw new Error('Papel inválido.');
+    if (modo === 'remoto') {
+      const { error } = await cliente.rpc('atualizar_papel', {
+        p_usuario_id: usuarioId,
+        p_papel: papel
+      });
+      if (error) throw error;
+      return;
+    }
+    const atual = db();
+    const pessoa = (atual.usuarios || []).find(function (u) { return u.id === usuarioId; });
+    if (!pessoa) throw new Error('Pessoa não encontrada.');
+    pessoa.papel = papel;
+    salvarDb();
+  }
+
+  function traduzirErroConvite(erro) {
+    if (erro && erro.code === '23505') {
+      return new Error('Já existe um convite pendente para este e-mail.');
+    }
+    return erro;
   }
 
   window.GESTLUX_BACKEND = {
@@ -509,6 +648,11 @@
     registrarEntrada: registrarEntrada,
     salvarOnboarding: salvarOnboarding,
     salvarConfig: salvarConfig,
-    listarUsuarios: listarUsuarios
+    listarUsuarios: listarUsuarios,
+    detalhesConvite: detalhesConvite,
+    criarConvite: criarConvite,
+    listarConvites: listarConvites,
+    cancelarConvite: cancelarConvite,
+    atualizarPapel: atualizarPapel
   };
 })();

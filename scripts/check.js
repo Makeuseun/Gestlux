@@ -111,6 +111,53 @@ if (!/salvar_onboarding/.test(schema)) {
   falhar('schema.sql não define a RPC salvar_onboarding');
 }
 
+// 8. Fase 3: convite por link, papéis e vendas por pessoa
+const backend = fs.readFileSync(path.join(raiz, 'js', 'backend.js'), 'utf8');
+const dashboard = fs.readFileSync(path.join(raiz, 'js', 'dashboard.js'), 'utf8');
+const cadastroHtml = fs.readFileSync(path.join(raiz, 'cadastro.html'), 'utf8');
+
+for (const trecho of [
+  'create table if not exists public.convites',
+  'public.criar_convite',
+  'public.detalhes_convite',
+  'public.aceitar_convite',
+  'public.atualizar_papel',
+  'public.cancelar_convite',
+  'public.registrar_venda_com_pessoa',
+  'vendedor_id uuid',
+  'vendedor_nome text',
+  'alter table public.convites enable row level security'
+]) {
+  if (!schema.includes(trecho)) falhar('schema.sql não contém: ' + trecho);
+}
+
+for (const trecho of [
+  'detalhesConvite',
+  'criarConvite',
+  'listarConvites',
+  'cancelarConvite',
+  'atualizarPapel',
+  'registrarVenda_com_pessoa',
+  'registrar_venda_com_pessoa'
+]) {
+  if (trecho === 'registrarVenda_com_pessoa') {
+    if (!/registrarVenda\(produtoId, quantidade, vendedor\)/.test(backend)) {
+      falhar('backend.js não registrada venda com vendedor');
+    }
+  } else if (!backend.includes(trecho)) {
+    falhar('backend.js não expõe: ' + trecho);
+  }
+}
+
+if (!/conviteToken/.test(auth) || !/detalhesConvite/.test(auth)) {
+  falhar('auth.js não trata o link de convite');
+}
+if (!/convite-aviso/.test(cadastroHtml) || !/grupo-segmento/.test(cadastroHtml)) {
+  falhar('cadastro.html não prepara o aviso/ocultação de segmento do convite');
+}
+if (!/Vendas por pessoa/.test(dashboard) || !/filtro-vendedor/.test(dashboard) || !/Turnos e ponto/.test(dashboard)) {
+  falhar('dashboard.js não implementa relatório por pessoa ou bloco "em breve"');
+}
 if (erros.length) {
   console.error('Falhas de verificação:');
   for (const e of erros) console.error(' - ' + e);

@@ -6,6 +6,9 @@
   'use strict';
 
   const B = window.GESTLUX_BACKEND || null;
+  let conviteToken = '';
+  let conviteDados = null;
+  let conviteInvalido = false;
 
   function toast(mensagem, tipo) {
     if (window.mostrarToast) window.mostrarToast(mensagem, tipo);
@@ -28,10 +31,58 @@
         ? 'Supabase conectado. Demo: demo@gestlux.com.br / Demo@12345'
         : 'Modo local: qualquer e-mail e senha são aceitos. Dados neste navegador.';
     } else {
-      el.textContent = B.remoto
-        ? 'Supabase conectado: organização e perfil serão criados no banco.'
-        : 'Modo local: os dados ficam salvos apenas neste navegador.';
+      el.textContent = conviteToken
+        ? (B.remoto
+          ? 'Supabase conectado: seu perfil será vinculado à organização do convite.'
+          : 'Modo local: seu perfil será vinculado ao convite neste navegador.')
+        : (B.remoto
+          ? 'Supabase conectado: organização e perfil serão criados no banco.'
+          : 'Modo local: os dados ficam salvos apenas neste navegador.');
     }
+  }
+
+  async function aplicarConvite() {
+    if (!document.getElementById('cadastro-form') || !B) return;
+    const params = new URLSearchParams(window.location.search);
+    conviteToken = params.get('convite') || '';
+    if (!conviteToken) return;
+
+    const aviso = document.getElementById('convite-aviso');
+    try {
+      conviteDados = await B.detalhesConvite(conviteToken);
+    } catch (e) {
+      conviteDados = null;
+    }
+
+    if (aviso) aviso.classList.remove('hidden');
+    if (!conviteDados) {
+      conviteInvalido = true;
+      if (aviso) aviso.textContent = 'Este link de convite é inválido ou já foi usado. Peça um novo link ao administrador.';
+      toast('Convite inválido ou já utilizado.', 'erro');
+      return;
+    }
+
+    if (aviso) {
+      aviso.textContent = 'Você foi convidado para ' + (conviteDados.organizacao || 'uma organização') +
+        ' com o papel de ' + (conviteDados.papel === 'admin' ? 'administrador' : conviteDados.papel === 'gerente' ? 'gerente' : 'operador') +
+        '. Use o e-mail do convite.';
+    }
+
+    const email = document.getElementById('email');
+    if (email) {
+      email.value = conviteDados.email || '';
+      email.readOnly = true;
+    }
+    const nome = document.getElementById('nome');
+    if (nome && conviteDados.nome) nome.value = conviteDados.nome;
+
+    const grupo = document.getElementById('grupo-segmento');
+    if (grupo) grupo.classList.add('hidden');
+    const segmento = document.getElementById('segmento');
+    if (segmento) segmento.required = false;
+
+    const btn = document.querySelector('#cadastro-form button[type="submit"]');
+    if (btn) btn.textContent = 'Entrar na organização';
   }
 
   async function preencherPerfil() {
@@ -93,6 +144,10 @@
 
     form.addEventListener('submit', async function (e) {
       e.preventDefault();
+      if (conviteInvalido) {
+        toast('Convite inválido. Peça um novo link ao administrador.', 'erro');
+        return;
+      }
       if (!form.checkValidity()) {
         form.reportValidity();
         return;
@@ -110,8 +165,14 @@
           senha: document.getElementById('senha').value,
           segmento: document.getElementById('segmento').value
         };
-        await B.cadastro(dados.nome, dados.email, dados.senha, dados.segmento);
-        window.location.href = 'onboarding.html';
+        await B.cadastro(
+          dados.nome,
+          dados.email,
+          dados.senha,
+          conviteDados ? conviteDados.segmento : dados.segmento,
+          conviteToken || null
+        );
+        window.location.href = conviteDados ? 'dashboard.html' : 'onboarding.html';
       } catch (erro) {
         toast((erro && erro.message) || 'Não foi possível criar a conta.', 'erro');
         btn.textContent = textoOriginal;
@@ -142,6 +203,8 @@
 
   async function init() {
     await preparar();
+    await aplicarConvite();
+    atualizarAviso();
     iniciarLogin();
     iniciarCadastro();
     iniciarLogout();
