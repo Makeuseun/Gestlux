@@ -277,7 +277,9 @@
         minimo: Number(dados.minimo) || 0,
         tipo_produto: dados.tipo_produto || null,
         data_validade: dados.data_validade || null,
-        nota_fiscal: dados.nota_fiscal || null
+        nota_fiscal: dados.nota_fiscal || null,
+        codigo_barras: dados.codigo_barras || null,
+        fornecedor_padrao: dados.fornecedor_padrao || null
       }]).select().single();
       if (error) throw traduzirErroProduto(error);
       return data;
@@ -291,7 +293,9 @@
       minimo: Number(dados.minimo) || 0,
       tipo_produto: dados.tipo_produto || null,
       data_validade: dados.data_validade || null,
-      nota_fiscal: dados.nota_fiscal || null
+      nota_fiscal: dados.nota_fiscal || null,
+      codigo_barras: dados.codigo_barras || null,
+      fornecedor_padrao: dados.fornecedor_padrao || null
     };
     db().produtos.push(produto);
     salvarDb();
@@ -323,7 +327,9 @@
         minimo: Number(dados.minimo) || 0,
         tipo_produto: dados.tipo_produto || null,
         data_validade: dados.data_validade || null,
-        nota_fiscal: dados.nota_fiscal || null
+        nota_fiscal: dados.nota_fiscal || null,
+        codigo_barras: dados.codigo_barras || null,
+        fornecedor_padrao: dados.fornecedor_padrao || null
       }).eq('id', id);
       if (error) throw traduzirErroProduto(error);
 
@@ -355,6 +361,8 @@
     produto.tipo_produto = dados.tipo_produto || null;
     produto.data_validade = dados.data_validade || null;
     produto.nota_fiscal = dados.nota_fiscal || null;
+    produto.codigo_barras = dados.codigo_barras || null;
+    produto.fornecedor_padrao = dados.fornecedor_padrao || null;
 
     if (delta !== 0) {
       atual.movimentacoes.push({
@@ -458,10 +466,14 @@
   }
 
   // Entrada manual de estoque: sempre gera uma movimentação do tipo "entrada".
-  async function registrarEntrada(produtoId, quantidade, observacao) {
+  async function registrarEntrada(produtoId, quantidade, observacao, detalhes) {
     const qtd = Number(quantidade);
     if (!qtd || qtd <= 0) throw new Error('Informe uma quantidade válida.');
     const obs = String(observacao || '').trim().slice(0, 200);
+    const extra = detalhes || {};
+    const fornecedor = String(extra.fornecedor || '').trim().slice(0, 120) || null;
+    const lote = String(extra.lote || '').trim().slice(0, 120) || null;
+    const validade = extra.data_validade || null;
 
     if (modo === 'remoto') {
       const user = await usuario();
@@ -479,7 +491,10 @@
         tipo: 'entrada',
         quantidade: qtd,
         valor: 0,
-        observacao: obs
+        observacao: obs,
+        fornecedor: fornecedor,
+        lote: lote,
+        data_validade: validade
       }]);
       if (mov.error) throw mov.error;
 
@@ -502,6 +517,9 @@
       quantidade: qtd,
       valor: 0,
       observacao: obs,
+      fornecedor: fornecedor,
+      lote: lote,
+      data_validade: validade,
       criado_em: new Date().toISOString()
     });
     salvarDb();
@@ -538,6 +556,36 @@
       return data || [];
     }
     return db().usuarios.slice();
+  }
+
+  async function listarFornecedores() {
+    let nomes = [];
+    try {
+      if (modo === 'remoto') {
+        const user = await usuario();
+        const [movimentacoes, produtos] = await Promise.all([
+          cliente.from('movimentacoes').select('fornecedor').eq('organizacao_id', user.organizacao_id),
+          cliente.from('produtos').select('fornecedor_padrao').eq('organizacao_id', user.organizacao_id)
+        ]);
+        if (movimentacoes.error) throw movimentacoes.error;
+        if (produtos.error) throw produtos.error;
+        nomes = (movimentacoes.data || []).map(function (m) { return m.fornecedor; })
+          .concat((produtos.data || []).map(function (p) { return p.fornecedor_padrao; }));
+      } else {
+        const atual = db();
+        nomes = (atual.movimentacoes || []).map(function (m) { return m.fornecedor; })
+          .concat((atual.produtos || []).map(function (p) { return p.fornecedor_padrao; }));
+      }
+    } catch (e) {
+      return [];
+    }
+
+    return nomes
+      .filter(Boolean)
+      .map(function (nome) { return String(nome).trim(); })
+      .filter(Boolean)
+      .filter(function (nome, indice, lista) { return lista.indexOf(nome) === indice; })
+      .sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
   }
 
   async function detalhesConvite(token) {
@@ -661,6 +709,7 @@
     salvarOnboarding: salvarOnboarding,
     salvarConfig: salvarConfig,
     listarUsuarios: listarUsuarios,
+    listarFornecedores: listarFornecedores,
     detalhesConvite: detalhesConvite,
     criarConvite: criarConvite,
     listarConvites: listarConvites,

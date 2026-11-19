@@ -132,6 +132,8 @@
     </main>
   </div>
 
+  <datalist id="lista-fornecedores"></datalist>
+
   <div class="modal" id="modal-novo-produto" hidden role="dialog" aria-modal="true" aria-labelledby="modal-novo-titulo">
     <div class="modal-caixa">
       <h3 id="modal-novo-titulo">Novo produto</h3>
@@ -141,8 +143,7 @@
         <div class="form-group"><label for="novo-sku">SKU</label>
           <input id="novo-sku" placeholder="Ex: CAM-001" /></div>
         <div class="form-group"><label for="novo-preco">Preço (R$)</label>
-          <input id="novo-preco" type="number" min="0" step="0.05" required placeholder="Ex: 79,90" />
-          <small class="campo-ajuda">Ajustes de R$ 0,05.</small></div>
+          <input id="novo-preco" type="number" min="0" step="0.05" required placeholder="Ex: 79,90" /></div>
         <div class="form-group"><label for="novo-qtd">Quantidade</label>
           <input id="novo-qtd" type="number" min="0" step="1" required placeholder="Ex: 120" /></div>
         <div class="form-group"><label for="novo-min">Estoque mínimo</label>
@@ -158,6 +159,10 @@
           <input id="novo-validade" type="date" /></div>
         <div class="form-group"><label for="novo-nota">Nota fiscal (opcional)</label>
           <input id="novo-nota" type="text" maxlength="120" placeholder="Ex: NF-e 12345" /></div>
+        <div class="form-group"><label for="novo-codigo">Código de barras / GTIN (opcional)</label>
+          <input id="novo-codigo" type="text" maxlength="40" placeholder="Ex: 7891234567890" /></div>
+        <div class="form-group"><label for="novo-fornecedor">Fornecedor habitual (opcional)</label>
+          <input id="novo-fornecedor" type="text" maxlength="120" list="lista-fornecedores" placeholder="Ex: Tecidos Sul" /></div>
         <div class="modal-acoes">
           <button type="button" class="btn btn-outline" id="novo-cancelar">Cancelar</button>
           <button type="submit" class="btn btn-primary">Adicionar produto</button>
@@ -176,8 +181,7 @@
         <div class="form-group"><label for="modal-sku">SKU</label>
           <input id="modal-sku" placeholder="Ex: CAM-001" /></div>
         <div class="form-group"><label for="modal-preco">Preço (R$)</label>
-          <input id="modal-preco" type="number" min="0" step="0.05" required value="0" />
-          <small class="campo-ajuda">Ajustes de R$ 0,05.</small></div>
+          <input id="modal-preco" type="number" min="0" step="0.05" required value="0" /></div>
         <div class="form-group"><label for="modal-qtd">Quantidade</label>
           <input id="modal-qtd" type="number" min="0" step="1" required value="0" /></div>
         <div class="form-group"><label for="modal-min">Estoque mínimo</label>
@@ -193,6 +197,10 @@
           <input id="modal-validade" type="date" /></div>
         <div class="form-group"><label for="modal-nota">Nota fiscal (opcional)</label>
           <input id="modal-nota" type="text" maxlength="120" placeholder="Ex: NF-e 12345" /></div>
+        <div class="form-group"><label for="modal-codigo">Código de barras / GTIN (opcional)</label>
+          <input id="modal-codigo" type="text" maxlength="40" placeholder="Ex: 7891234567890" /></div>
+        <div class="form-group"><label for="modal-fornecedor">Fornecedor habitual (opcional)</label>
+          <input id="modal-fornecedor" type="text" maxlength="120" list="lista-fornecedores" placeholder="Ex: Tecidos Sul" /></div>
         <div class="modal-acoes">
           <button type="button" class="btn btn-outline" id="modal-cancelar">Cancelar</button>
           <button type="submit" class="btn btn-primary">Salvar alterações</button>
@@ -213,8 +221,14 @@
         <input type="hidden" id="entrada-produto-id" />
         <div class="form-group"><label for="entrada-qtd">Quantidade a adicionar</label>
           <input id="entrada-qtd" type="number" min="1" step="1" required placeholder="Ex: 20" /></div>
+        <div class="form-group"><label for="entrada-fornecedor">Fornecedor (opcional)</label>
+          <input id="entrada-fornecedor" type="text" maxlength="120" list="lista-fornecedores" placeholder="Ex: Tecidos Sul" /></div>
+        <div class="form-group"><label for="entrada-lote">Lote (opcional)</label>
+          <input id="entrada-lote" type="text" maxlength="120" placeholder="Ex: LOTE-2409" /></div>
+        <div class="form-group"><label for="entrada-validade">Validade do lote (opcional)</label>
+          <input id="entrada-validade" type="date" /></div>
         <div class="form-group"><label for="entrada-obs">Observação (opcional)</label>
-          <input id="entrada-obs" type="text" maxlength="200" placeholder="Ex: nota fiscal 12345" /></div>
+          <input id="entrada-obs" type="text" maxlength="200" placeholder="Ex: conferido com o romaneio" /></div>
         <div class="modal-acoes">
           <button type="button" class="btn btn-outline" id="entrada-cancelar">Cancelar</button>
           <button type="submit" class="btn btn-primary">Registrar entrada</button>

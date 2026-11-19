@@ -38,6 +38,8 @@ create table if not exists public.produtos (
   tipo_produto text,
   data_validade date,
   nota_fiscal text,
+  codigo_barras text,
+  fornecedor_padrao text,
   criado_em timestamptz not null default now()
 );
 
@@ -52,6 +54,9 @@ create table if not exists public.movimentacoes (
   observacao text,
   vendedor_id uuid,
   vendedor_nome text,
+  fornecedor text,
+  lote text,
+  data_validade date,
   criado_em timestamptz not null default now()
 );
 
@@ -108,11 +113,16 @@ where coalesce(array_length(modulos, 1), 0) = 0;
 alter table public.produtos add column if not exists tipo_produto text;
 alter table public.produtos add column if not exists data_validade date;
 alter table public.produtos add column if not exists nota_fiscal text;
+alter table public.produtos add column if not exists codigo_barras text;
+alter table public.produtos add column if not exists fornecedor_padrao text;
 
 alter table public.movimentacoes add column if not exists produto_nome text;
 alter table public.movimentacoes add column if not exists observacao text;
 alter table public.movimentacoes add column if not exists vendedor_id uuid;
 alter table public.movimentacoes add column if not exists vendedor_nome text;
+alter table public.movimentacoes add column if not exists fornecedor text;
+alter table public.movimentacoes add column if not exists lote text;
+alter table public.movimentacoes add column if not exists data_validade date;
 
 -- Vendas antigas ficam sem vendedor identificado (não inventamos dados).
 -- A FK mantém o vínculo quando disponível; o nome fica gravado no histórico.

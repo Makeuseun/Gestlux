@@ -2445,11 +2445,16 @@ img {
 }
 
 .campo-ajuda,
-.produto-nota {
+.produto-nota,
+.historico-detalhes {
   display: block;
   font-size: 0.72rem;
   color: var(--texto-suave);
   margin-top: 0.15rem;
+}
+
+.historico-detalhes {
+  color: var(--cor-primaria);
 }
 
 .validade-vencida {

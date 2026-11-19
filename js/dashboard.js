@@ -34,6 +34,20 @@
     if (window.mostrarToast) window.mostrarToast(mensagem, tipo);
   }
 
+  async function carregarFornecedores() {
+    const lista = document.getElementById('lista-fornecedores');
+    if (!lista || !B) return;
+    let nomes = [];
+    try {
+      nomes = await B.listarFornecedores();
+    } catch (e) {
+      nomes = [];
+    }
+    lista.innerHTML = nomes.map(function (nome) {
+      return '<option value="' + esc(nome) + '"></option>';
+    }).join('');
+  }
+
   function numero(valor) {
     const n = Number(valor);
     return isFinite(n) ? n : 0;
@@ -418,7 +432,10 @@
       const vencido = validade && validade < hoje;
       return '<tr>' +
         '<td><strong>' + esc(p.nome) + '</strong>' +
-        (p.nota_fiscal ? '<small class="produto-nota">NF: ' + esc(p.nota_fiscal) + '</small>' : '') + '</td>' +
+        (p.nota_fiscal ? '<small class="produto-nota">NF: ' + esc(p.nota_fiscal) + '</small>' : '') +
+        (p.codigo_barras ? '<small class="produto-nota">Cód: ' + esc(p.codigo_barras) + '</small>' : '') +
+        (p.fornecedor_padrao ? '<small class="produto-nota">Forn: ' + esc(p.fornecedor_padrao) + '</small>' : '') +
+        '</td>' +
         '<td>' + esc(p.sku || '—') + '</td>' +
         '<td>' + esc(rotuloTipoProduto(p.tipo_produto)) + '</td>' +
         '<td>' + (p.data_validade
@@ -592,9 +609,14 @@
 
     const rotulos = { venda: "Venda", entrada: "Entrada", saida: "Saída" };
     return '<ul class="historico-lista">' + movs.map(function (m) {
+      const detalhes = [];
+      if (m.fornecedor) detalhes.push('Forn: ' + m.fornecedor);
+      if (m.lote) detalhes.push('Lote: ' + m.lote);
+      if (m.data_validade) detalhes.push('Val: ' + dataCurta(m.data_validade));
       return '<li><span>' + esc(dataHora(m.criado_em)) + '</span>' +
         '<strong>' + esc(rotulos[m.tipo] || m.tipo) + '</strong>' +
         '<span>' + numero(m.quantidade) + ' un.</span>' +
+        (detalhes.length ? '<small class="historico-detalhes">' + esc(detalhes.join(' · ')) + '</small>' : '') +
         (m.observacao ? '<em>' + esc(m.observacao) + '</em>' : '') +
         '</li>';
     }).join('') + '</ul>';
@@ -613,6 +635,8 @@
     document.getElementById('modal-tipo').value = produto.tipo_produto || '';
     document.getElementById('modal-validade').value = produto.data_validade || '';
     document.getElementById('modal-nota').value = produto.nota_fiscal || '';
+    document.getElementById('modal-codigo').value = produto.codigo_barras || '';
+    document.getElementById('modal-fornecedor').value = produto.fornecedor_padrao || '';
 
     const historico = document.getElementById('modal-historico');
     if (historico) historico.innerHTML = historicoProdutoHTML(produto);
@@ -663,9 +687,12 @@
               minimo: document.getElementById('novo-min').value,
               tipo_produto: document.getElementById('novo-tipo').value,
               data_validade: document.getElementById('novo-validade').value,
-              nota_fiscal: document.getElementById('novo-nota').value.trim()
+              nota_fiscal: document.getElementById('novo-nota').value.trim(),
+              codigo_barras: document.getElementById('novo-codigo').value.trim(),
+              fornecedor_padrao: document.getElementById('novo-fornecedor').value.trim()
             });
             fecharModalNovoProduto();
+            await carregarFornecedores();
             toast('Produto adicionado e persistido.');
             buscaEstoque = '';
             filtroTipoProduto = '';
@@ -721,9 +748,12 @@
           minimo: document.getElementById('modal-min').value,
           tipo_produto: document.getElementById('modal-tipo').value,
           data_validade: document.getElementById('modal-validade').value,
-          nota_fiscal: document.getElementById('modal-nota').value.trim()
+          nota_fiscal: document.getElementById('modal-nota').value.trim(),
+          codigo_barras: document.getElementById('modal-codigo').value.trim(),
+          fornecedor_padrao: document.getElementById('modal-fornecedor').value.trim()
         });
         fecharModalProduto();
+        await carregarFornecedores();
         toast("Produto atualizado.");
         btn.textContent = "Salvar alterações";
         btn.disabled = false;
@@ -743,6 +773,9 @@
     document.getElementById('entrada-produto-id').value = produto.id;
     document.getElementById('entrada-produto-nome').textContent = produto.nome;
     document.getElementById('entrada-qtd').value = '';
+    document.getElementById('entrada-fornecedor').value = produto.fornecedor_padrao || '';
+    document.getElementById('entrada-lote').value = '';
+    document.getElementById('entrada-validade').value = '';
     document.getElementById('entrada-obs').value = '';
     modal.hidden = false;
     document.getElementById('entrada-qtd').focus();
@@ -788,9 +821,15 @@
         await B.registrarEntrada(
           document.getElementById('entrada-produto-id').value,
           quantidade,
-          document.getElementById('entrada-obs').value.trim()
+          document.getElementById('entrada-obs').value.trim(),
+          {
+            fornecedor: document.getElementById('entrada-fornecedor').value.trim(),
+            lote: document.getElementById('entrada-lote').value.trim(),
+            data_validade: document.getElementById('entrada-validade').value
+          }
         );
         fecharModalEntrada();
+        await carregarFornecedores();
         toast(substituir("Entrada registrada: {q} unidade(s) de {n}.", {
           q: quantidade,
           n: document.getElementById('entrada-produto-nome').textContent
@@ -807,6 +846,14 @@
   function nomeVendedor(m) {
     if (m && m.vendedor_nome) return String(m.vendedor_nome);
     return 'Sem vendedor';
+  }
+
+  function origemMovimentacao(m) {
+    const partes = [];
+    if (m && m.fornecedor) partes.push(String(m.fornecedor));
+    if (m && m.lote) partes.push('Lote ' + m.lote);
+    if (m && m.data_validade) partes.push('Val ' + dataCurta(m.data_validade));
+    return partes.join(' · ');
   }
 
   function vendedoresDisponiveis() {
@@ -857,7 +904,7 @@
   }
 
   function exportarCSV() {
-    const linhas = [["Data e hora", "Produto", "Tipo", "Qtd", "Valor", "Vendedor", "Observação"]];
+    const linhas = [["Data e hora", "Produto", "Tipo", "Qtd", "Valor", "Vendedor", "Origem", "Observação"]];
 
     movimentacoesFiltradas().forEach(function (m) {
       linhas.push([
@@ -867,6 +914,7 @@
         numero(m.quantidade),
         numero(m.valor).toFixed(2),
         nomeVendedor(m),
+        origemMovimentacao(m),
         m.observacao || ''
       ]);
     });
@@ -901,7 +949,7 @@
   function relatorioCorpoHTML() {
     const movs = movimentacoesFiltradas().slice(0, 50);
     if (!movs.length) {
-      return '<tr><td colspan="7" class="tabela-vazia">' + esc("Nenhum registro no período.") + '</td></tr>';
+      return '<tr><td colspan="8" class="tabela-vazia">' + esc("Nenhum registro no período.") + '</td></tr>';
     }
 
     const rotulos = { venda: "Venda", entrada: "Entrada", saida: "Saída" };
@@ -913,6 +961,7 @@
         '<td>' + numero(m.quantidade) + '</td>' +
         '<td>' + esc(dinheiro(m.valor)) + '</td>' +
         '<td>' + esc(nomeVendedor(m)) + '</td>' +
+        '<td>' + esc(origemMovimentacao(m) || '—') + '</td>' +
         '<td>' + esc(m.observacao || '—') + '</td>' +
         '</tr>';
     }).join('');
@@ -970,6 +1019,7 @@
       '<th>' + esc("Qtd") + '</th>' +
       '<th>' + esc("Valor") + '</th>' +
       '<th>' + esc("Vendedor") + '</th>' +
+      '<th>' + esc("Origem") + '</th>' +
       '<th>' + esc("Observação") + '</th>' +
       '</tr></thead><tbody id="relatorio-corpo">' + relatorioCorpoHTML() + '</tbody></table></div>';
 
@@ -1402,6 +1452,7 @@
 
     registrarEventos();
     await carregar();
+    await carregarFornecedores();
     aplicarPreferenciasNav();
     await irPara((location.hash || '#home').replace('#', ''));
   }

@@ -183,6 +183,34 @@ for (const trecho of ['filtro-tipo-produto', 'filtro-tipo-mov', 'validade-vencid
 if (!/validade-vencida/.test(css)) {
   falhar('CSS não estiliza validade vencida');
 }
+
+// 10. Recepção: fornecedor leve, lote, validade por lote e código de barras
+for (const trecho of ['codigo_barras', 'fornecedor_padrao']) {
+  if (!schema.includes(trecho)) falhar('schema.sql não contém coluna de recepção: ' + trecho);
+  if (!backend.includes(trecho)) falhar('backend.js não persiste coluna de recepção: ' + trecho);
+}
+for (const trecho of ['fornecedor text', 'lote text']) {
+  if (!schema.includes(trecho)) falhar('schema.sql não contém coluna de recepção: ' + trecho);
+}
+for (const trecho of ['fornecedor: fornecedor', 'lote: lote', 'data_validade: validade']) {
+  if (!backend.includes(trecho)) falhar('backend.js não persiste dado de recepção: ' + trecho);
+}
+if (!/listarFornecedores/.test(backend) || !/carregarFornecedores/.test(dashboard)) {
+  falhar('sugestão de fornecedores não foi implementada');
+}
+for (const trecho of [
+  'novo-codigo', 'novo-fornecedor', 'modal-codigo', 'modal-fornecedor',
+  'entrada-fornecedor', 'entrada-lote', 'entrada-validade', 'lista-fornecedores'
+]) {
+  if (!dashboardHtml.includes(trecho)) falhar('dashboard.html não contém campo de recepção: ' + trecho);
+}
+for (const trecho of ['origemMovimentacao', 'Origem', 'historico-detalhes']) {
+  if (!dashboard.includes(trecho)) falhar('dashboard.js não trata origem/rastreabilidade: ' + trecho);
+}
+if (!/Fornecedor habitual/.test(dashboardHtml) || !/Validade do lote/.test(dashboardHtml)) {
+  falhar('rótulos de fornecedor/validade do lote ausentes');
+}
+
 if (erros.length) {
   console.error('Falhas de verificação:');
   for (const e of erros) console.error(' - ' + e);
