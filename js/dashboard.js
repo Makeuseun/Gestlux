@@ -195,6 +195,8 @@
     const subtitulo = document.getElementById('view-subtitle');
     if (titulo) titulo.textContent = cfg.title;
     if (subtitulo) subtitulo.textContent = subtituloTexto;
+    const papel = document.getElementById('user-papel');
+    if (papel) papel.textContent = nomePapel(papelAtual());
     atualizarModoBadge();
   }
 

@@ -264,6 +264,9 @@ if (!/li\.hidden = !porPapel \|\| !porModulo/.test(dashboard)) {
 if (!/if \(!podeAcessar\(nome\)\)/.test(dashboard)) {
   falhar('navegação direta por hash não foi bloqueada');
 }
+if (!dashboardHtml.includes('user-papel') || !dashboard.includes('nomePapel(papelAtual())')) {
+  falhar('papel do usuário não aparece no cabeçalho');
+}
 
 if (erros.length) {
   console.error('Falhas de verificação:');
